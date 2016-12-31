@@ -1,0 +1,558 @@
+<!doctype html>
+<html class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Quebec</title>
+  <meta name="description" content="Quebec">
+  <meta name="keywords" content="dashboard">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <link rel="icon" type="image/png" href="assets/i/favicon.png">
+  <link rel="apple-touch-icon-precomposed" href="assets/i/app-icon72x72@2x.png">
+  <meta name="apple-mobile-web-app-title" content="Amaze UI" />
+  <link rel="stylesheet" href="assets/css/amazeui.min.css"/>
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<!--[if lte IE 9]>
+<p class="browsehappy">你正在使用<strong>过时</strong>的浏览器，Amaze UI 暂不支持。 请 <a href="http://browsehappy.com/" target="_blank">升级浏览器</a>
+  以获得更好的体验！</p>
+<![endif]-->
+
+<!--[if lt IE 9]>
+<script src="http://libs.baidu.com/jquery/1.11.1/jquery.min.js"></script>
+<script src="http://cdn.staticfile.org/modernizr/2.8.3/modernizr.js"></script>
+<script src="assets/js/amazeui.ie8polyfill.min.js"></script>
+<![endif]-->
+
+<!--[if (gte IE 9)|!(IE)]><!-->
+<script src="assets/js/jquery.min.js"></script>
+<!--<![endif]-->
+<script src="assets/js/amazeui.min.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/general.js"></script>
+<script src="http://cdn.hcharts.cn/highcharts/highcharts.js"></script>
+
+<script type="text/javascript">
+
+  var authToken = sessionStorage.getItem("X-AUTH-TOKEN");
+  
+  $(document).ready(function(){
+
+    $("#item_list_link").click(function(e){
+      sessionStorage.removeItem("orderId");
+      window.location.href = "item-list.html";
+    });
+
+    initAppointments();
+    initTrendHighChart();
+    initPerformanceHighChart();
+    initCustomersHighChart();
+  });
+
+  function logout(){
+    var dataObj = {};
+    $.ajax({
+      type: 'POST',
+      url: SERVER_DOMAIN + "/logout",
+      contentType: "application/json",
+      dataType: "json",
+      headers: {'X-AUTH-TOKEN': authToken},                          
+      data: JSON.stringify(dataObj),    
+      success: function(r) {
+        window.location.href = "login.html";
+      },
+      error: function(r) { 
+        window.location.href = "login.html";
+      }
+    });
+  }
+
+  var currentPage = 1;
+  var countPerPage = 10;
+  var numOfPages = 10;
+
+  function initAppointments(){
+    var requestUrl = SERVER_DOMAIN + "/appointments?page="+currentPage;
+
+    $.ajax({
+      type: "GET",                                         
+      url: requestUrl,
+      dataType: "json",
+      headers: {'X-AUTH-TOKEN': authToken},
+      success: function (result) {                    
+        $("#orders tbody").empty();
+
+        $.each(result.data, function(i,val){  
+          $("#table_appointments tbody").append('<tr><td>'+val.id+'</td><td>'+val.name+'</td><td>'+val.phone+'</td><td>'+val.update_time+'</td></tr>');
+        });
+      },
+      error: function(e) { 
+        $("#errormsg").html("邮箱或密码错误！");
+      }
+    }); 
+  }
+
+  function initTrendChart(){
+
+    $.ajax({
+      type: "GET",                                         
+      url: SERVER_DOMAIN + "/trend",
+      dataType: "json",
+      headers: {'X-AUTH-TOKEN': authToken},
+      success: function (result) {  
+
+        $("#sp_total_trading_volume").text(result.total_trading_volume);   
+        $("#sp_total_order_num").text(result.total_order_num);                  
+
+        var barChartData = {
+        labels: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+        datasets: [{
+            type: 'bar',
+            label: "营业额",
+            data: result.trading_volume_division,
+            fill: false,
+            backgroundColor: "rgba(255,99,132,0.2)",
+            borderColor: "rgba(255,99,132,1)",
+            borderWidth: 1,
+            hoverBackgroundColor: "rgba(255,99,132,0.4)",
+            hoverBorderColor: "rgba(255,99,132,1)",
+            yAxisID: 'y-axis-1'
+        }, {
+            label: "订单量",
+            type:'line',
+            data: result.order_num_division,
+            fill: false,
+            lineTension: 0,
+            borderColor: '#EC932F',
+            backgroundColor: '#EC932F',
+            pointBorderColor: '#EC932F',
+            pointBackgroundColor: '#EC932F',
+            pointHoverBackgroundColor: '#EC932F',
+            pointHoverBorderColor: '#EC932F',
+            yAxisID: 'y-axis-2'
+        } ]
+    };
+
+    var ctx = document.getElementById("trend_chart").getContext("2d");
+    window.myBar = new Chart(ctx, {
+        type: 'bar',
+        data: barChartData,
+        options: {
+        responsive: true,
+        tooltips: {
+          mode: 'label'
+        },
+        elements: {
+          line: {
+              fill: false
+          }
+        },
+        scales: {
+          xAxes: [{
+              display: true,
+              gridLines: {
+                  display: false
+              },
+              labels: {
+                  show: true,
+              }
+          }],
+          yAxes: [{
+              type: "linear",
+              display: true,
+              position: "left",
+              id: "y-axis-1",
+              gridLines:{
+                  display: true
+              },
+              labels: {
+                  show:true,
+              }
+          }, {
+              type: "linear",
+              display: true,
+              position: "right",
+              id: "y-axis-2",
+              gridLines:{
+                  display: false
+              },
+              labels: {
+                  show:true,
+              }
+          }]
+        }
+      }
+    });
+
+      },
+      error: function(e) { 
+        $("#errormsg").html("错误！");
+      }
+    }); 
+  }
+
+  function initPerformanceChart(){
+    $.ajax({
+      type: "GET",                                         
+      url: SERVER_DOMAIN + "/performance",
+      dataType: "json",
+      headers: {'X-AUTH-TOKEN': authToken},
+      success: function (result) {  
+
+
+        var chart_data = {
+            labels: result.creator_names,
+            datasets: [
+                {
+                    label: "本月成交额",
+                    backgroundColor: "rgba(255,99,132,0.2)",
+                    borderColor: "rgba(255,99,132,1)",
+                    borderWidth: 1,
+                    hoverBackgroundColor: "rgba(255,99,132,0.4)",
+                    hoverBorderColor: "rgba(255,99,132,1)",
+                    data: result.trading_volumes
+                }
+            ]
+        };
+
+        var ctx = document.getElementById("performance_chart").getContext("2d");
+        window.myBar = new Chart(ctx, {
+            type: 'bar',
+            data: chart_data
+        });
+
+      },
+      error: function(e) { 
+        $("#errormsg").html("错误！");
+      }
+    }); 
+  }
+
+  function initPerformanceHighChart(){
+    $.ajax({
+      type: "GET",                                         
+      url: SERVER_DOMAIN + "/performance",
+      dataType: "json",
+      headers: {'X-AUTH-TOKEN': authToken},
+      success: function (result) {  
+
+        $('#performance_highchart').highcharts({
+            chart: {
+                type: 'column'
+            },
+            title: {
+                text: ''
+            },
+            subtitle: {
+                text: ''
+            },
+            xAxis: {
+                categories: result.creator_names,
+                title: {
+                    text: null
+                }
+            },
+            yAxis: {
+                min: 0,
+                title: {
+                    text: '',
+                    align: 'high'
+                },
+                labels: {
+                    overflow: 'justify'
+                }
+            },
+            tooltip: {
+                valueSuffix: ''
+            },
+            plotOptions: {
+                bar: {
+                    dataLabels: {
+                        enabled: true
+                    }
+                }
+            },
+            legend: {
+                layout: 'vertical',
+                align: 'right',
+                verticalAlign: 'top',
+                x: -40,
+                y: 100,
+                floating: true,
+                borderWidth: 1,
+                backgroundColor: ((Highcharts.theme && Highcharts.theme.legendBackgroundColor) || '#FFFFFF'),
+                shadow: true
+            },
+            credits: {
+                enabled: false
+            },
+            series: [{
+                name: '成交额',
+                data: result.trading_volumes,
+                dataLabels: {
+                  enabled: true,
+                  color: '#FFFFFF',
+                  y: 25 // 25 pixels down from the top
+                }
+            }]
+        });
+
+      },
+      error: function(e) { 
+        $("#errormsg").html("错误！");
+      }
+    }); 
+  }
+
+  function initTrendHighChart(){
+    $.ajax({
+      type: "GET",                                         
+      url: SERVER_DOMAIN + "/trend",
+      dataType: "json",
+      headers: {'X-AUTH-TOKEN': authToken},
+      success: function (result) {  
+
+        $("#sp_total_trading_volume").text(result.total_trading_volume);   
+        $("#sp_total_order_num").text(result.total_order_num); 
+        $('#trend_highchart').highcharts({
+            chart: {
+                zoomType: 'xy'
+            },
+            title: {
+                text: ''
+            },
+            subtitle: {
+                text: ''
+            },
+            xAxis: [{
+                categories: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
+                crosshair: true
+            }],
+            yAxis: [{ // Primary yAxis
+                labels: {
+                    format: '',
+                    style: {
+                        color: Highcharts.getOptions().colors[1]
+                    }
+                },
+                title: {
+                    text: '',
+                    style: {
+                        color: Highcharts.getOptions().colors[1]
+                    }
+                }
+            }, { // Secondary yAxis
+                title: {
+                    text: '',
+                    style: {
+                        color: Highcharts.getOptions().colors[0]
+                    }
+                },
+                labels: {
+                    format: '',
+                    style: {
+                        color: Highcharts.getOptions().colors[0]
+                    }
+                },
+                opposite: true
+            }],
+            tooltip: {
+                shared: true
+            },
+            legend: {
+                layout: 'vertical',
+                align: 'left',
+                x: 120,
+                verticalAlign: 'top',
+                y: 100,
+                floating: true,
+                backgroundColor: (Highcharts.theme && Highcharts.theme.legendBackgroundColor) || '#FFFFFF'
+            },
+            series: [{
+                name: '成交额',
+                type: 'column',
+                yAxis: 0,
+                data: result.trading_volume_division,
+                dataLabels: {
+                  enabled: true,
+                  color: '#FFFFFF',
+                  y: 25 // 25 pixels down from the top
+                },
+                tooltip: {
+                    valueSuffix: ''
+                }
+
+            }, {
+                name: '订单量',
+                type: 'spline',
+                yAxis: 1,
+                data: result.order_num_division,
+                tooltip: {
+                    valueSuffix: ''
+                }
+            }]
+        });
+      },
+      error: function(e) { 
+        $("#errormsg").html("错误！");
+      }
+    }); 
+  }
+
+  function initCustomersHighChart(){
+    $.ajax({
+      type: "GET",                                         
+      url: SERVER_DOMAIN + "/analytics/customers",
+      dataType: "json",
+      headers: {'X-AUTH-TOKEN': authToken},
+      success: function (result) {  
+        $('#customers_highchart').highcharts({
+          chart: {
+              type: 'line'
+          },
+          title: {
+              text: ''
+          },
+          subtitle: {
+              text: ''
+          },
+          xAxis: {
+              categories: ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"]
+          },
+          yAxis: {
+              title: {
+                  text: ''
+              }
+          },
+          plotOptions: {
+              line: {
+                  dataLabels: {
+                      enabled: true
+                  },
+                  enableMouseTracking: false
+              }
+          },
+          series: [{
+              name: '客户数',
+              data: result.customer_division
+          }]
+        });
+      },
+      error: function(e) { 
+        $("#errormsg").html("错误！");
+      }
+    }); 
+  }
+  </script>
+
+<header class="am-topbar admin-header">
+  <div class="am-topbar-brand">
+    <a href="index2.html"><img src="assets/i/quebec_logo.jpg" class="logo"> &nbsp;<strong>Quebec</strong> <small>后台管理系统</small></a>
+  </div>
+
+  <button class="am-topbar-btn am-topbar-toggle am-btn am-btn-sm am-btn-success am-show-sm-only" data-am-collapse="{target: '#topbar-collapse'}"><span class="am-sr-only">导航切换</span> <span class="am-icon-bars"></span></button>
+
+  <div class="am-collapse am-topbar-collapse" id="topbar-collapse">
+    <ul class="am-nav am-nav-pills am-topbar-nav">
+      <li><a href="order-list.html">订单</a></li>
+      <li id="li_customer"><a href="customer-list.html">客户</a></li>
+      <li id="li_price"><a href="price.html">报价</a></li>
+      <li id="li_dashboard" class="am-active"><a href="dashboard.html">报表</a></li>
+    </ul>
+
+    <ul class="am-nav am-nav-pills am-topbar-nav am-topbar-right admin-header-list">
+      <li class="am-dropdown" data-am-dropdown>
+        <a class="am-dropdown-toggle" data-am-dropdown-toggle href="javascript:;">
+          <span class="am-icon-plus"></span> 快速新建 <span class="am-icon-caret-down"></span>
+        </a>
+        <ul class="am-dropdown-content">
+          <li><a href="customer-create.html"><span class="am-icon-user"></span> 客户</a></li>
+          <li><a href="order-create.html"><span class="am-icon-file-text"></span> 订单</a></li>
+        </ul>
+      </li>
+      <li><a href="javascript:;"><span class="am-icon-envelope-o"></span> 收件箱 <span class="am-badge am-badge-warning">0</span></a></li>
+      <li class="am-dropdown" data-am-dropdown>
+        <a class="am-dropdown-toggle" data-am-dropdown-toggle href="javascript:;">
+          <span class="am-icon-users"></span> <span id="sp_username"></span> <span class="am-icon-caret-down"></span>
+        </a>
+        <ul class="am-dropdown-content">
+          <li><a href="my-info.html"><span class="am-icon-user"></span> 资料</a></li>
+          <li><a href="#"><span class="am-icon-cog"></span> 设置</a></li>
+          <li><a href="javascript:logout();"><span class="am-icon-power-off"></span> 退出</a></li>
+        </ul>
+      </li>
+      <!-- <li class="am-hide-sm-only"><a href="javascript:;" id="admin-fullscreen"><span class="am-icon-arrows-alt"></span> <span class="admin-fullText">开启全屏</span></a></li> -->
+    </ul>
+  </div>
+</header>
+
+<div class="am-cf admin-main">
+  <!-- sidebar start -->
+  <!-- sidebar end -->
+
+  <!-- content start -->
+  <div class="admin-content">
+
+    <div class="am-cf am-padding">
+      <!-- <div class="am-fl am-cf"><strong class="am-text-primary am-text-lg">首页</strong> / <small>仪表盘</small></div> -->
+    </div>
+
+    <ul class="am-avg-sm-1 am-avg-md-4 am-margin am-padding am-text-center admin-content-list ">
+      <li><a href="#" class="am-text-danger"><span class="am-icon-btn am-icon-file-text"></span><br/>年营业额<br/><span id="sp_total_trading_volume">0</span></a></li>
+      <li><a href="#" class="am-text-warning"><span class="am-icon-btn am-icon-briefcase"></span><br/>年成交订单<br/><span id="sp_total_order_num">0</span></a></li>
+      <li><a href="#" class="am-text-success"><span class="am-icon-btn am-icon-recycle"></span><br/>昨日访问<br/>0</a></li>
+      <li><a href="#" class="am-text-secondary"><span class="am-icon-btn am-icon-user-md"></span><br/>在线用户<br/>0</a></li>
+    </ul>
+
+    <div class="am-g">
+      <div class="am-u-md-6">
+        <div class="am-panel am-panel-default">
+          <div class="am-panel-hd am-cf" data-am-collapse="{target: '#collapse-panel-10'}">成交额 | 订单量<span class="am-icon-chevron-down am-fr" ></span></div>
+          <div id="collapse-panel-10" class="am-in">
+            <div id="trend_highchart" width="400" height="400"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="am-u-md-6">
+        <div class="am-panel am-panel-default">
+          <div class="am-panel-hd am-cf" data-am-collapse="{target: '#collapse-panel-11'}">本月业绩<span class="am-icon-chevron-down am-fr" ></span></div>
+          <div id="collapse-panel-11" class="am-in">
+            <div id="performance_highchart" width="400" height="400"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="am-u-md-6">
+        <div class="am-panel am-panel-default">
+          <div class="am-panel-hd am-cf" data-am-collapse="{target: '#collapse-panel-10'}">月客户数<span class="am-icon-chevron-down am-fr" ></span></div>
+          <div id="collapse-panel-10" class="am-in">
+            <div id="customers_highchart" width="400" height="400"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="am-u-md-6">
+        &nbsp;
+      </div>
+    </div>
+    
+    
+  </div>
+  <!-- content end -->
+
+</div>
+
+<a href="#" class="am-icon-btn am-icon-th-list am-show-sm-only admin-menu" data-am-offcanvas="{target: '#admin-offcanvas'}"></a>
+
+<footer>
+  <!-- <hr> -->
+  <p class="am-padding-left law">© 2014 Xiaomu.ren, Inc. Licensed under MIT license.</p>
+</footer>
+
+
+</body>
+</html>

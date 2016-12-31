@@ -1,0 +1,569 @@
+<!doctype html>
+<html class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Quebec</title>
+  <meta name="description" content="Quebec">
+  <meta name="keywords" content="index">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <link rel="icon" type="image/png" href="assets/i/favicon.png">
+  <link rel="apple-touch-icon-precomposed" href="assets/i/app-icon72x72@2x.png">
+  <meta name="apple-mobile-web-app-title" content="Amaze UI" />
+  <link rel="stylesheet" href="assets/css/amazeui.min.css"/>
+  <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+<!--[if lte IE 9]>
+<p class="browsehappy">你正在使用<strong>过时</strong>的浏览器，Amaze UI 暂不支持。 请 <a href="http://browsehappy.com/" target="_blank">升级浏览器</a>
+  以获得更好的体验！</p>
+<![endif]-->
+
+<!--[if lt IE 9]>
+<script src="http://libs.baidu.com/jquery/1.11.1/jquery.min.js"></script>
+<script src="http://cdn.staticfile.org/modernizr/2.8.3/modernizr.js"></script>
+<script src="assets/js/amazeui.ie8polyfill.min.js"></script>
+<![endif]-->
+
+<!--[if (gte IE 9)|!(IE)]><!-->
+<script src="assets/js/jquery.min.js"></script>
+<!--<![endif]-->
+<script src="assets/js/amazeui.min.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/general.js"></script>
+
+<script type="text/javascript">
+  var authToken = sessionStorage.getItem("X-AUTH-TOKEN");
+  
+  var currentPage = 1;
+  var countPerPage = 12;
+  var numOfPages = 10;
+  var orderStatus = -1;
+  var orderId = "";
+  var searchKeyword = "";
+  var weeks = 0;
+
+  $(document).ready(function(){
+    $("#create").click(function(){
+      window.location.href = "order-create.html";
+    });
+
+    initList();
+    initPagination();
+    initStatusSelection();
+
+    $("#item_list_link").click(function(e){
+      sessionStorage.removeItem("orderId");
+      window.location.href = "item-list.html";
+    });
+  });
+
+  function initList(){
+    var requestUrl = SERVER_DOMAIN + "/order/select?page="+currentPage+"&count="+countPerPage+"&keyword="+searchKeyword+"&weeks="+weeks;
+    if (orderStatus != -1) {
+      requestUrl += ("&status=" + orderStatus);
+    }
+    if (orderId != "") {
+      requestUrl += ("&orderId=" + orderId);
+    }
+
+    $.ajax({
+        type: "GET",                                         
+        url: requestUrl,
+        dataType: "json",
+        headers: {'X-AUTH-TOKEN': authToken},
+        success: function (data) {                     
+          $("#orders tbody").empty();
+
+          $.each(data.data, function(i,val){  
+
+            //1-已付定金，2-制作中，3-制作完成，4-已付款，5-已配送
+            var status_span = "";
+            if (val.status == 1) {
+              status_span = '<span class="am-badge am-badge-danger">已付定金</span>';
+            } else if (val.status == 2) {
+              status_span = '<span class="am-badge">制作中</span>';
+            } else if (val.status == 3) {
+              status_span = '<span class="am-badge am-badge-warning">制作完成</span>';
+            } else if (val.status == 4) {
+              status_span = '<span class="am-badge am-badge-secondary">已付款</span>';
+            } else if (val.status == 5) {
+              status_span = '<span class="am-badge am-badge-success">已配送</span>';
+            } else if (val.status == 6) {
+              status_span = '<span class="am-badge">未知</span>';
+            }
+
+            // var itemStr = "";
+            // $.each(val.items, function(j,itemVal){
+            //   itemStr += (itemVal.furnishing.title+" ￥"+itemVal.cost+" <br>");
+            // });
+
+            var orderid_link = "<div id='orderid_div'><a class='common-link' href=#>"+val.id+"</a></div>";
+
+            var customer_link = "<div id='customer_div' ><a data-am-modal=\"{target: '#customer-popup'}\" href=# customer_data='"+val.customer.id+"'>"+val.name+"</a></div>";
+
+            //var order_man_dropdown = '<div class="am-dropdown" data-am-dropdown><button class="am-btn am-btn-default am-btn-xs am-dropdown-toggle" data-am-dropdown-toggle><span class="am-icon-cog"></span> <span class="am-icon-caret-down"></span></button><ul class="am-dropdown-content"><li><a href="#">已付定金</a></li><li><a href="#">制作中</a></li><li><a href="#">已付款</a></li><li><a href="#">已配送</a></li><li><a href="#">未知</a></li></ul></div>';
+
+            var order_man_dropdown = '<div id="order_man_div"><select style="font-size:12px" id="'+val.id+'_order_man_select" data-am-selected="{btnSize: \'sm\'}"><option value="0">操作</option><option value="1">已付定金</option><option value="2">制作中</option><option value="3">制作完成</option><option value="4">已付款</option><option value="5">已配送</option></select>';
+
+            var design_link = "";
+            if (val.design_qiniu_url && val.design_qiniu_url != "http://7xsky4.com1.z0.glb.clouddn.com/")
+              design_link = '<a target="_blank" href="'+val.design_qiniu_url+'"><i class="am-icon-file-image-o am-icon-sm"></i></a>';
+
+            var delivery_link = "";
+            if (val.delivery_qiniu_url && val.delivery_qiniu_url != "http://7xsky4.com1.z0.glb.clouddn.com/")
+              delivery_link = '<a target="_blank" href="'+val.delivery_qiniu_url+'"><i class="am-icon-file-pdf-o am-icon-sm"></i></a>';
+
+            var settled_factory_span = "";
+            if (val.settled_factory == 1) {
+              settled_factory_span = '<span class="am-badge am-badge-success">已结</span>';
+            } else {
+              settled_factory_span = '<span class="am-badge">未结</span>';
+            }
+
+            if (user.role == 9) {
+              $("#order_thead_full").hide();
+              $("#order_thead_designer").hide();
+              $("#order_thead_factory").show();
+            } else if (user.role == 1 || user.role == 2) {
+              $("#order_thead_full").hide();
+              $("#order_thead_designer").show();
+              $("#order_thead_factory").hide();
+            }
+
+            var order_tr = "";
+            if (user.role == 9) {
+              order_tr = '<tr>' +
+                '<td>'+orderid_link+'</td>' +
+                '<td>'+customer_link+'</td>' +
+                '<td>'+val.due_date+'</td>' +
+                '<td>'+val.contract_no+'</td>' +
+                '<td class="price">￥'+val.cost+'</td>' +
+                '<td>'+settled_factory_span+'</td>' +
+                '<td>'+val.creator_name+'</td>' +
+                '<td style="vertical-align:middle;">'+design_link+'</td>' +
+                '<td style="vertical-align:middle;">'+delivery_link+'</td>' +
+                '<td>'+status_span+'</td><td>'+order_man_dropdown+'</td>' +
+                '</tr>';
+            } else if (user.role == 1 || user.role == 2){
+              order_tr = '<tr>' +
+                '<td>'+orderid_link+'</td>' +
+                '<td>'+customer_link+'</td>' +
+                '<td>'+val.due_date+'</td>' +
+                '<td>'+val.contract_no+'</td>' +
+                '<td class="price">￥'+val.price+'</td>' +
+                '<td>'+settled_factory_span+'</td>' +
+                '<td>'+val.creator_name+'</td>' +
+                '<td style="vertical-align:middle;">'+design_link+'</td>' +
+                '<td style="vertical-align:middle;">'+delivery_link+'</td>' +
+                '<td>'+status_span+'</td><td>'+order_man_dropdown+'</td>' +
+                '</tr>';
+            } else {
+              order_tr = '<tr>' +
+                '<td>'+orderid_link+'</td>' +
+                '<td>'+customer_link+'</td>' +
+                '<td>'+val.due_date+'</td>' +
+                '<td>'+val.contract_no+'</td>' +
+                '<td class="price">￥'+val.cost+'</td>' +
+                '<td class="price">￥'+val.price+'</td>' +
+                '<td>'+settled_factory_span+'</td>' +
+                '<td>'+val.creator_name+'</td>' +
+                '<td style="vertical-align:middle;">'+design_link+'</td>' +
+                '<td style="vertical-align:middle;">'+delivery_link+'</td>' +
+                '<td>'+status_span+'</td><td>'+order_man_dropdown+'</td>' +
+                '</tr>';
+            }
+
+            $("#orders tbody").append(order_tr);
+
+          });
+          
+          $("#orderid_div a").click(function(e){
+            sessionStorage.setItem("orderId", $(this).text());
+            window.location.href = "order-detail.html";
+          });
+
+          $("#order_man_div select").change(function(e){
+            var status = $(this).children('option:selected').val();
+            var orderId = $(this).attr("id").split("_")[0];
+
+            var dataObj = new FormData();
+            dataObj.append("id", orderId);
+            dataObj.append("status", status);
+
+            $('#update-confirm').modal({
+              relatedTarget: this,
+              onConfirm: function(options) {
+                $.ajax({
+                  type: 'POST',
+                  url: SERVER_DOMAIN + "/order/update",
+                  processData: false,
+                  contentType: false,  
+                  headers: {'X-AUTH-TOKEN': authToken},                          
+                  data: dataObj,    
+                  success: function(r) {
+                    window.location.href = "order-list.html";
+                  },
+                  error: function(r) { 
+                    alert("更新失败！");
+                  }
+                });
+              },
+              // closeOnConfirm: false,
+              onCancel: function() {
+              }
+            });
+
+          });
+
+          $("#customer_div a").click(function(e){
+            var customerId = $(this).attr("customer_data");
+            $.ajax({
+              type: "GET",                                         
+              url: SERVER_DOMAIN + "/customer/read?customerId="+customerId,
+              dataType: "json",
+              headers: {'X-AUTH-TOKEN': authToken},
+              success: function (data) {     
+                $("#customer_name").html(data.name);
+                $("#customer_phone").html(data.phone_number);
+                $("#customer_city").html(data.city);
+                $("#customer_address").html(data.address);
+                $("#customer_email").html(data.email);
+                $("#customer_remarks").html(data.remarks);
+              },
+              error: function(XMLHttpRequest, textStatus, errorThrown){  
+                alert(textStatus+'Error loading PHP document'+XMLHttpRequest.status);  
+              }
+            });
+          });
+        },
+        error: function(e) { 
+          $("#errormsg").html("邮箱或密码错误！");
+        } 
+    });
+  }
+
+  function initPagination(){
+      var requestUrl = SERVER_DOMAIN + "/order/count?page="+currentPage+"&keyword="+searchKeyword+"&weeks="+weeks;
+      if (orderStatus != -1) {
+        requestUrl += ("&status=" + orderStatus);
+      }
+      if (orderId != "") {
+        requestUrl += ("&orderId=" + orderId);
+      }
+
+      $.ajax({
+        type: "GET",                                         
+        url: requestUrl,
+        dataType: "json",
+        headers: {'X-AUTH-TOKEN': authToken},
+        success: function (data) {
+          $("#record_count").html(data.count);
+          numOfPages = parseInt(data.count / countPerPage);
+          if ((data.count % countPerPage) > 0) {
+            numOfPages += 1;
+          }
+          
+          setupPagination();
+          
+        },
+        error: function(e) { 
+          $("#errormsg").html("查询清单列表错误！");
+        } 
+      })
+    }
+
+    function setupPagination(){
+      $(".am-pagination").empty();
+
+      if (currentPage == 1) {
+        $(".am-pagination").append('<li class="am-disabled"><a href="#">«</a></li>');
+      } else {
+        $(".am-pagination").append('<li><a href="#">«</a></li>');
+      }
+      if (currentPage >= 3){
+        $(".am-pagination").append('<li><a href="#">'+(parseInt(currentPage)-2)+'</a></li>');
+      }
+      if (currentPage >= 2){
+        $(".am-pagination").append('<li><a href="#">'+(parseInt(currentPage)-1)+'</a></li>');
+      }
+      $(".am-pagination").append('<li class="am-disabled"><a href="#">'+currentPage+'</a></li>');
+      if ((numOfPages - currentPage) >= 1){
+        $(".am-pagination").append('<li><a href="#">'+(parseInt(currentPage)+1)+'</a></li>');
+      }
+      if ((numOfPages - currentPage) >= 2){
+        $(".am-pagination").append('<li><a href="#">'+(parseInt(currentPage)+2)+'</a></li>');
+      }
+      if (currentPage >= numOfPages) {
+        $(".am-pagination").append('<li class="am-disabled"><a href="#">»</a></li>');
+      } else {
+        $(".am-pagination").append('<li><a href="#">»</a></li>');
+      }
+
+      $(".am-pagination li a").click(function(e){
+
+
+        var requestPage = $(this).text();
+        if ("»" == requestPage) {
+          requestPage = parseInt(currentPage) + 1;
+        } else if ("«" == requestPage) {
+          requestPage = parseInt(currentPage) - 1;
+        }
+
+        currentPage = requestPage;
+
+        initList();
+        setupPagination();
+      });
+    }
+
+  function search(){
+    searchKeyword = $("#keyword").val();
+    currentPage = 1;
+    initList();
+    initPagination();
+  }
+
+  function initStatusSelection(){
+    var $selected = $('#status_select');
+    $selected.on('change', function() {
+      orderStatus = $(this).find('option').eq(this.selectedIndex).val();
+      currentPage = 1;
+      initList();
+      initPagination();
+    });
+  }
+
+  function filterList(week) {
+     weeks = week;
+     initList();
+     initPagination();
+  }
+
+  </script>
+
+<header class="am-topbar admin-header">
+  <div class="am-topbar-brand">
+    <a href="index2.html"><img src="assets/i/quebec_logo.jpg" class="logo"> &nbsp;<strong>Quebec</strong> <small>后台管理系统</small></a>
+  </div>
+
+  <button class="am-topbar-btn am-topbar-toggle am-btn am-btn-sm am-btn-success am-show-sm-only" data-am-collapse="{target: '#topbar-collapse'}"><span class="am-sr-only">导航切换</span> <span class="am-icon-bars"></span></button>
+
+  <div class="am-collapse am-topbar-collapse" id="topbar-collapse">
+    <ul class="am-nav am-nav-pills am-topbar-nav">
+      <li class="am-active"><a href="order-list.html">订单</a></li>
+      <li id="li_customer"><a href="customer-list.html">客户</a></li>
+      <li id="li_price"><a href="price.html">报价</a></li>
+      <li id="li_dashboard"><a href="dashboard.html">报表</a></li>
+    </ul>
+
+    <ul class="am-nav am-nav-pills am-topbar-nav am-topbar-right admin-header-list">
+      <li class="am-dropdown" data-am-dropdown>
+        <a class="am-dropdown-toggle" data-am-dropdown-toggle href="javascript:;" id="fast_create">
+          <span class="am-icon-plus"></span> 快速新建 <span class="am-icon-caret-down"></span>
+        </a>
+        <ul class="am-dropdown-content">
+          <li><a href="customer-create.html"><span class="am-icon-user"></span> 客户</a></li>
+          <li><a href="order-create.html"><span class="am-icon-file-text"></span> 订单</a></li>
+        </ul>
+      </li>
+      <li><a href="javascript:;"><span class="am-icon-envelope-o"></span> 收件箱 <span class="am-badge am-badge-warning">0</span></a></li>
+      <li class="am-dropdown" data-am-dropdown>
+        <a class="am-dropdown-toggle" data-am-dropdown-toggle href="javascript:;">
+          <span class="am-icon-users"></span> <span id="sp_username"></span> <span class="am-icon-caret-down"></span>
+        </a>
+        <ul class="am-dropdown-content">
+          <li><a href="my-info.html"><span class="am-icon-user"></span> 资料</a></li>
+          <li><a href="#"><span class="am-icon-cog"></span> 设置</a></li>
+          <li><a href="javascript:logout();"><span class="am-icon-power-off"></span> 退出</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</header>
+
+<div class="am-cf admin-main">
+  <!-- sidebar start -->
+  <div class="admin-sidebar am-offcanvas" id="admin-offcanvas">
+    <div class="am-offcanvas-bar admin-offcanvas-bar">
+      <ul class="am-list admin-sidebar-list">
+        <li id="list-li" class="admin-parent">
+          <a class="am-cf" data-am-collapse="{target: '#list-nav'}"><span class="am-icon-table"></span> 订单 <span class="am-icon-angle-right am-fr am-margin-right"></span></a>
+          <ul class="am-list am-collapse admin-sidebar-sub am-in" id="list-nav">
+            <li><a href="order-list.html" class="am-cf"><span class="am-icon-check"></span> 订单列表</a></li>
+            <li><a id="item_list_link" href="item-list.html"><span class="am-icon-check"></span> 清单列表</a></li>
+            
+          </ul>
+        </li>
+
+        <li id="meta-li" class="admin-parent">
+          <a class="am-cf" data-am-collapse="{target: '#collapse-nav'}"><span class="am-icon-file"></span> 基础数据 <span class="am-icon-angle-right am-fr am-margin-right"></span></a>
+          <ul class="am-list am-collapse admin-sidebar-sub am-in" id="collapse-nav">
+            <li><a href="sku-list.html"><span class="am-icon-check"></span> SKU列表</a></li>
+          </ul>
+        </li>
+
+      </ul>
+
+      <div class="am-panel am-panel-default admin-sidebar-panel">
+        <div class="am-panel-bd">
+          <p><span class="am-icon-bookmark"></span> 公告</p>
+          <p>时间就是生命，我的朋友。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- sidebar end -->
+
+  <!-- content start -->
+  <div class="admin-content">
+
+    <div class="am-cf am-padding">
+      <div class="am-fl am-cf"><strong class="am-text-primary am-text-lg">订单列表</strong> </div>
+    </div>
+
+    <div class="am-g">
+      <div class="am-u-sm-12 am-u-md-6">
+        <div class="am-btn-toolbar">
+          <div class="am-btn-group am-btn-group-xs">
+            <button id="create" type="button" class="am-btn am-btn-default"><span class="am-icon-plus"></span> 新增</button>
+            <button id="oneweek" type="button" class="am-btn am-btn-default" style="margin-left:20px" onclick="filterList(1)">最近1周</button>
+            <button id="twoweek" type="button" class="am-btn am-btn-default" onclick="filterList(2)">最近2周</button>
+            <!--<button type="button" class="am-btn am-btn-default"><span class="am-icon-save"></span> 保存</button>
+            <button type="button" class="am-btn am-btn-default"><span class="am-icon-archive"></span> 审核</button>
+            <button type="button" class="am-btn am-btn-default"><span class="am-icon-trash-o"></span> 删除</button>-->
+          </div>
+        </div>
+      </div>
+      <div class="am-u-sm-12 am-u-md-3">
+        <div class="am-form-group">
+          <select id="status_select" data-am-selected="{btnSize: 'sm'}" >
+            <option value="-1">所有状态</option>
+            <option value="1">已付定金</option>
+            <option value="2">制作中</option>
+            <option value="3">制作完成</option>
+            <option value="4">已付款</option>
+            <option value="5">已配送</option>
+          </select>
+        </div>
+      </div> 
+      <div class="am-u-sm-12 am-u-md-3">
+        <div class="am-input-group am-input-group-sm">
+          <input id="keyword" type="text" class="am-form-field" placeholder="标题">
+          <span class="am-input-group-btn">
+            <button id="order_search" class="am-btn am-btn-default" type="button" onclick="search()">搜索</button>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="am-g">
+      <div class="am-u-sm-12">
+        <form class="am-form">
+          <table id="orders" class="am-table am-table-bd am-table-striped admin-content-table am-table-compact am-table-hover">
+            <thead>
+            <tr id="order_thead_full">
+              <th>订单号</th></th><th>客户</th><th>送货时间</th><th>合同编号</th><th>出厂价</th><th>售价</th><th>供应商结算</th><th>设计师</th><th>设计文件</th><th>送货单</th><th>状态</th><th>管理</th>
+            </tr>
+            <tr id="order_thead_factory" style="display:none">
+              <th>订单号</th></th><th>客户</th><th>送货时间</th><th>合同编号</th><th>出厂价</th><th>供应商结算</th><th>设计师</th><th>设计文件</th><th>送货单</th><th>状态</th><th>管理</th>
+            </tr>
+            <tr id="order_thead_designer" style="display:none">
+              <th>订单号</th></th><th>客户</th><th>送货时间</th><th>合同编号</th><th>售价</th><th>供应商结算</th><th>设计师</th><th>设计文件</th><th>送货单</th><th>状态</th><th>管理</th>
+            </tr>
+            </thead>
+            <tbody>
+            
+            </tbody>
+          </table>
+
+          <div class="am-cf">
+            共 <span id="record_count"></span> 条记录
+            <div class="am-fr">
+              <ul class="am-pagination">
+                
+              </ul>
+            </div>
+          </div>
+          
+        </form>
+      </div>
+
+    </div>
+
+    <div class="am-popup" id="customer-popup">
+      <div class="am-popup-inner">
+        <div class="am-popup-hd">
+          <h4 class="am-popup-title">客户信息</h4>
+          <span data-am-modal-close class="am-close">&times;</span>
+        </div>
+        <div class="am-popup-bd">
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">姓名</div>
+            <div id="customer_name" class="am-u-sm-8 am-u-md-4 am-u-end">
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">电话</div>
+            <div id="customer_phone" class="am-u-sm-8 am-u-md-4 am-u-end">
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">城市</div>
+            <div id="customer_city" class="am-u-sm-8 am-u-md-4 am-u-end">
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">地址</div>
+            <div id="customer_address" class="am-u-sm-8 am-u-md-4 am-u-end">
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">邮箱</div>
+            <div id="customer_email" class="am-u-sm-8 am-u-md-4 am-u-end">
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">备注</div>
+            <div id="customer_remarks" class="am-u-sm-8 am-u-md-4 am-u-end">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="am-modal am-modal-confirm" tabindex="-1" id="update-confirm">
+    <div class="am-modal-dialog">
+      <div class="am-modal-hd"></div>
+      <div class="am-modal-bd">
+        确认更新状态？
+      </div>
+      <div class="am-modal-footer">
+        <span class="am-modal-btn" data-am-modal-cancel>取消</span>
+        <span class="am-modal-btn" data-am-modal-confirm>确定</span>
+      </div>
+    </div>
+  </div>
+  <!-- content end -->
+
+</div>
+
+<a href="#" class="am-icon-btn am-icon-th-list am-show-sm-only admin-menu" data-am-offcanvas="{target: '#admin-offcanvas'}"></a>
+
+<footer>
+  <!-- <hr> -->
+  <p class="am-padding-left law">© 2014 Xiaomu.ren, Inc. Licensed under MIT license.</p>
+</footer>
+
+
+</body>
+</html>

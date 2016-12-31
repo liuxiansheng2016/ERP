@@ -1,0 +1,968 @@
+<!doctype html>
+<html class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Quebec</title>
+  <meta name="description" content="客户列表页面">
+  <meta name="keywords" content="table">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <link rel="icon" type="image/png" href="assets/i/favicon.png">
+  <link rel="apple-touch-icon-precomposed" href="assets/i/app-icon72x72@2x.png">
+  <meta name="apple-mobile-web-app-title" content="Amaze UI" />
+  <link rel="stylesheet" href="assets/css/amazeui.min.css"/>
+  <link rel="stylesheet" href="assets/css/admin.css">
+
+  <!--[if lt IE 9]>
+  <script src="http://libs.baidu.com/jquery/1.11.1/jquery.min.js"></script>
+  <script src="http://cdn.staticfile.org/modernizr/2.8.3/modernizr.js"></script>
+  <script src="assets/js/amazeui.ie8polyfill.min.js"></script>
+  <![endif]-->
+
+  <!--[if (gte IE 9)|!(IE)]><!-->
+  <script src="assets/js/jquery.min.js"></script>
+  <!--<![endif]-->
+  <script src="assets/js/amazeui.min.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/general.js"></script>
+
+  <script type="text/javascript">
+
+  var authToken = sessionStorage.getItem("X-AUTH-TOKEN");
+
+  var designers = null;
+
+  var currentPage = 1;
+  var countPerPage = 15;
+  var numOfPages = 10;
+
+  var sortingColumnIndex = 5;
+  var selectedStatus = -1;
+  var selectedClassification = 0;
+  var selectedDesigner = -1;
+
+  var clickedCustomerId = "";
+
+  var editedCustomerId = "";
+  var editedOldValue = "";
+
+  var searchKeyword = "";
+
+  var followupCustomerId = "";
+
+  $(document).ready(function(){
+    initList();
+    initPagination();
+    initUserDropdown();
+    initStatusSelection();
+    initClassificationSelection();
+    initDesignerSelection();
+  });
+
+  function initList(){
+    $.ajax({
+        type: "GET",                                         
+        url: SERVER_DOMAIN + "/customer/select?page="+currentPage+"&sortingColumnIndex="+sortingColumnIndex+"&status="+selectedStatus+"&classification="+selectedClassification+"&keyword="+searchKeyword+"&follower_id="+selectedDesigner,
+        dataType: "json",
+        headers: {'X-AUTH-TOKEN': authToken},
+        success: function (data) {  
+          $("#table-customer tbody").empty();                  
+          $.each(data.data, function(i,val){  
+            var classification_span = getClassificationSpanStar(val.classification, val.id);
+            var status_span = getStandardStatusSpan(val.status, val.id);
+
+            var customerid_link = "";
+            if (user.role == 0 && val.star == 1){
+              customerid_link = "<div id='customerid_div'><a class='common-link' href=# data='" + val.id + "' >"+val.name+"</a> <i class='am-icon-star xmr-red'></i></div>";
+            } else {
+              customerid_link = "<div id='customerid_div'><a class='common-link' href=# data='" + val.id + "' >"+val.name+"</a></div>";
+            }
+
+            var op_button = "";
+            if (user.role == 0){
+              op_button = '<button name="btn_assign_individual" type="button" class="am-btn am-btn-primary am-btn-xs" data="'+val.id+'">指派</button>'
+            } else {
+              op_button = '<button id="btn_assign_public" type="button" class="am-btn-xs am-btn-default"><span class="am-icon-plus"></span> 移至公海</button>'
+            }
+
+            var comment_link = "<div class='am-u-sm-9' id='comment_div'><a class='common-link' href=# data='" + val.id + "'>"+val.last_comment_display+"</a></div>";
+            var comment_btn = '<div class="am-u-sm-3" id="comment_btn_div"><button id="followup-btn" type="button" class="am-btn-s am-radius" style="font-size:12px;border:0px" data_customer_id="'+val.id+'" data_customer_name="'+val.name+'" data_old_status="'+val.status+'">跟进</button></div>';
+
+
+            // Edit
+            var sp_classification_edit = //"<span id='"+val.id+"_sp_classification_edit' style='display:none'>" +
+              "<select id='"+val.id+"_sp_classification_edit' style='display:none;font-size:12px;width:60px'>" +
+              "<option value='A'>重要</option>" +
+              "<option value='B'>普通</option>" +
+              "<option value='C'>低价值</option>" +
+              "</select>";// +
+              //"</span>"
+
+            var sp_phone_edit = "<input type='text' id='"+val.id+"_sp_phone_edit' value='"+val.phone_number+"' style='display:none;font-size:12px;width:100px'/>";
+
+            var sp_status_edit = "<select id='"+val.id+"_sp_status_edit' style='display:none;font-size:12px;width:60px'>" +
+              '<option value="1">预约</option>' +
+              '<option value="2">沟通中</option>' +
+              '<option value="3">接待</option>' +
+              '<option value="4">方案制定</option>' +
+              '<option value="5">待签</option>' +
+              '<option value="6">成交</option>' +
+              '<option value="7">放弃</option>' +
+              '<option value="8">付定金</option>' +
+              '<option value="9">待录入</option>' +
+              '<option value="10">搁置</option>' +
+              "</select>";
+
+            var sp_follower_edit = "<select id='"+val.id+"_sp_follower_edit' style='display:none;font-size:12px;width:60px'>";
+            $.each(designers, function(i,des){  
+              sp_follower_edit += ("<option value="+des.uid+">"+des.nickname+"</option>");
+            });
+            sp_follower_edit += "</select>";
+
+            // Table
+            $("#table-customer tbody").append('<tr>' + 
+              '<td>'+customerid_link+'</td>' +
+              '<td><span id="sp_classification_outer" x="'+val.id+'" o="'+val.classification+'">'+classification_span+sp_classification_edit+'</span></td>' +
+              '<td><span id="sp_phone_outer" x="'+val.id+'" o="'+val.phone_number+'"><span id="'+val.id+'_sp_phone">'+val.phone_number+'</span>'+sp_phone_edit+'</span></td>' +
+              '<td><span id="sp_status_outer" x="'+val.id+'" o="'+val.status+'">'+status_span+sp_status_edit+'</span></td>' +
+              '<td title="'+val.last_comment+'">'+comment_link+comment_btn+'</td>' +
+              '<td>'+val.last_followup_time_display+'</td>' +
+              '<td><span id="sp_follower_outer" x="'+val.id+'"><span id="'+val.id+'_sp_follower">'+val.follower_name+'</span>'+sp_follower_edit+'</span></td>' +
+              
+              '</tr>');
+          });
+          
+          // Events
+          $("#sp_classification_outer span").dblclick(function(e){
+            editedCustomerId = $(this).parent().attr('x');
+            editedOldValue = $(this).parent().attr('o');
+            $("#"+editedCustomerId+"_sp_classification").hide();
+            $("#"+editedCustomerId+"_sp_classification_edit").show();
+            $("#"+editedCustomerId+"_sp_classification_edit").focus();
+          });
+          $("#sp_classification_outer select").blur(function(e){
+            $("#"+editedCustomerId+"_sp_classification_edit").hide();
+            $("#"+editedCustomerId+"_sp_classification").show();
+            var newClassification = $(this).val();
+            if (newClassification != editedOldValue) {
+              var new_classification_span = getClassificationSpan(newClassification, editedCustomerId);
+              $("#"+editedCustomerId+"_sp_classification").text(getClassificationName(newClassification));
+              $("#"+editedCustomerId+"_sp_classification").removeClass("am-badge-danger");
+              $("#"+editedCustomerId+"_sp_classification").removeClass("am-badge-secondary");
+              $("#"+editedCustomerId+"_sp_classification").addClass(getClassificationClass(newClassification));
+              $(this).parent().attr('o', newClassification);
+              var dataObj = {"customer_id": editedCustomerId, "classification":newClassification};
+              $.ajax({
+                  type: 'POST',
+                  url: SERVER_DOMAIN + "/customer/update",
+                  contentType: "application/json",
+                  dataType: "json",         
+                  headers: {'X-AUTH-TOKEN': authToken},                          
+                  data: JSON.stringify(dataObj),    
+                  success: function(r) {
+                    $("#edit_result").html("重要程度更新成功！");
+                  },
+                  error: function(r) { 
+                    $("#edit_result").html("重要程度更新失败！");
+                  }
+              });
+            } 
+          });
+
+          $("#sp_phone_outer span").dblclick(function(e){
+            editedCustomerId = $(this).parent().attr('x');
+            editedOldValue = $(this).parent().attr('o');
+            $("#"+editedCustomerId+"_sp_phone").hide();
+            $("#"+editedCustomerId+"_sp_phone_edit").show();
+            $("#"+editedCustomerId+"_sp_phone_edit").focus();
+          });
+          $("#sp_phone_outer input").blur(function(e){
+            $("#"+editedCustomerId+"_sp_phone_edit").hide();
+            $("#"+editedCustomerId+"_sp_phone").show();
+            var editedNewValue = $(this).val();
+            $("#"+editedCustomerId+"_sp_phone").text(editedNewValue);
+            if (editedNewValue != editedOldValue) {
+              var dataObj = {"customer_id": editedCustomerId, "phone_number":editedNewValue};
+              $.ajax({
+                  type: 'POST',
+                  url: SERVER_DOMAIN + "/customer/update",
+                  contentType: "application/json",
+                  dataType: "json",         
+                  headers: {'X-AUTH-TOKEN': authToken},                          
+                  data: JSON.stringify(dataObj),    
+                  success: function(r) {
+                    $("#edit_result").html("电话更新成功！");
+                  },
+                  error: function(r) { 
+                    $("#edit_result").html("电话更新失败！");
+                  }
+              });
+            }
+          });
+
+          $("#sp_status_outer span").dblclick(function(e){
+            editedCustomerId = $(this).parent().attr('x');
+            editedOldValue = $(this).parent().attr('o');
+            $("#"+editedCustomerId+"_sp_status").hide();
+            $("#"+editedCustomerId+"_sp_status_edit").show();
+            $("#"+editedCustomerId+"_sp_status_edit").focus();
+          });
+          $("#sp_status_outer select").blur(function(e){
+            $("#"+editedCustomerId+"_sp_status_edit").hide();
+            $("#"+editedCustomerId+"_sp_status").show();
+            var editedNewValue = $(this).val();
+            if (editedNewValue != editedOldValue) {
+              var new_status_span = getStatusSpan(editedNewValue, editedCustomerId);
+              $("#"+editedCustomerId+"_sp_status").text(getStatusName(editedNewValue));
+              $("#"+editedCustomerId+"_sp_status").attr('class', '')
+              $("#"+editedCustomerId+"_sp_status").addClass("am-badge");
+              $("#"+editedCustomerId+"_sp_status").addClass(getStatusClass(editedNewValue));
+              $(this).parent().attr('o', editedNewValue);
+              var dataObj = {"customer_id": editedCustomerId, "status":editedNewValue};
+              $.ajax({
+                  type: 'POST',
+                  url: SERVER_DOMAIN + "/customer/update",
+                  contentType: "application/json",
+                  dataType: "json",         
+                  headers: {'X-AUTH-TOKEN': authToken},                          
+                  data: JSON.stringify(dataObj),    
+                  success: function(r) {
+                    $("#edit_result").html("客户进度更新成功！");
+                  },
+                  error: function(r) { 
+                    $("#edit_result").html("客户进度更新失败！");
+                  }
+              });
+            } 
+          });
+
+          $("#sp_follower_outer span").dblclick(function(e){
+            editedCustomerId = $(this).parent().attr('x');
+            editedOldValue = $(this).parent().attr('o');
+            $("#"+editedCustomerId+"_sp_follower").hide();
+            $("#"+editedCustomerId+"_sp_follower_edit").show();
+            $("#"+editedCustomerId+"_sp_follower_edit").focus();
+          });
+          $("#sp_follower_outer select").blur(function(e){
+            $("#"+editedCustomerId+"_sp_follower_edit").hide();
+            $("#"+editedCustomerId+"_sp_follower").show();
+            var editedNewValue = $(this).val();
+            if (editedNewValue != editedOldValue) {
+              var new_status_span = getStatusSpan(editedNewValue, editedCustomerId);
+              $("#"+editedCustomerId+"_sp_follower").text(getDesignerName(editedNewValue));
+              $(this).parent().attr('o', editedNewValue);
+              var dataObj = {"customer_id": editedCustomerId, "follower_id_new":editedNewValue};
+              $.ajax({
+                  type: 'POST',
+                  url: SERVER_DOMAIN + "/customer/update",
+                  contentType: "application/json",
+                  dataType: "json",         
+                  headers: {'X-AUTH-TOKEN': authToken},                          
+                  data: JSON.stringify(dataObj),    
+                  success: function(r) {
+                    $("#edit_result").html("负责人更新成功！");
+                  },
+                  error: function(r) { 
+                    $("#edit_result").html("负责人更新失败！");
+                  }
+              });
+            } 
+          });
+
+
+          $("#customerid_div a").click(function(e){
+            sessionStorage.setItem("customerId", $(this).attr("data"));
+            // window.location.href = "customer-detail.html";
+            window.open("customer-detail.html");
+          });
+
+          $("#comment_div a").click(function(e){
+            initCustomer($(this).attr("data"));
+          });
+
+          $("#comment_btn_div button").click(function(e){
+            followupCustomerId = $(this).attr("data_customer_id");
+            var comment_customer_name = $(this).attr("data_customer_name");
+            $("#sp_followup_customer_name").html(comment_customer_name);
+
+            var comment_old_status = $(this).attr("data_old_status");
+            $("#hdn_status_old").val(comment_old_status);
+            $("#sel_status_new").find("option").eq(comment_old_status).attr('selected', true);
+            
+            $("#followup-popup").modal();
+          })
+
+          $('button[name="btn_assign_individual"]').click(function(e){
+            clickedCustomerId = $(this).attr("data");
+
+            $("#assign-popup").modal();
+            $("#sel_assignee").find("option").eq(clickedCustomerId).attr('selected', true);
+
+          });
+        },
+        error: function(e) { 
+          $("#errormsg").html("没有查询到结果！");
+        } 
+    })
+  }
+
+  function initPagination(){
+    var requestUrl = SERVER_DOMAIN + "/customer/count?page="+currentPage+"&status="+selectedStatus+"&classification="+selectedClassification+"&keyword="+searchKeyword+"&follower_id="+selectedDesigner;
+    // if (user.role != 0) {
+    //   requestUrl += ("&status=" + user.role);
+    // }
+    // if (orderId != "") {
+    //   requestUrl += ("&orderId=" + orderId);
+    // }
+
+    $.ajax({
+      type: "GET",                                         
+      url: requestUrl,
+      dataType: "json",
+      headers: {'X-AUTH-TOKEN': authToken},
+      success: function (data) {
+        $("#record_count").html(data.count);
+        numOfPages = parseInt(data.count / countPerPage);
+        if ((data.count % countPerPage) > 0) {
+          numOfPages += 1;
+        }
+        
+        setupPagination();
+      },
+      error: function(e) { 
+        $("#errormsg").html("查询清单列表错误！");
+      } 
+    })
+  }
+
+  function setupPagination(){
+    $(".am-pagination").empty();
+
+    if (currentPage == 1) {
+      $(".am-pagination").append('<li class="am-disabled"><a href="#">«</a></li>');
+    } else {
+      $(".am-pagination").append('<li><a href="#">«</a></li>');
+    }
+    if (currentPage >= 3){
+      $(".am-pagination").append('<li><a href="#">'+(parseInt(currentPage)-2)+'</a></li>');
+    }
+    if (currentPage >= 2){
+      $(".am-pagination").append('<li><a href="#">'+(parseInt(currentPage)-1)+'</a></li>');
+    }
+    $(".am-pagination").append('<li class="am-disabled"><a href="#">'+currentPage+'</a></li>');
+    if ((numOfPages - currentPage) >= 1){
+      $(".am-pagination").append('<li><a href="#">'+(parseInt(currentPage)+1)+'</a></li>');
+    }
+    if ((numOfPages - currentPage) >= 2){
+      $(".am-pagination").append('<li><a href="#">'+(parseInt(currentPage)+2)+'</a></li>');
+    }
+    if (currentPage >= numOfPages) {
+      $(".am-pagination").append('<li class="am-disabled"><a href="#">»</a></li>');
+    } else {
+      $(".am-pagination").append('<li><a href="#">»</a></li>');
+    }
+
+    $(".am-pagination li a").click(function(e){
+      var requestPage = $(this).text();
+      if ("»" == requestPage) {
+        requestPage = parseInt(currentPage) + 1;
+      } else if ("«" == requestPage) {
+        requestPage = parseInt(currentPage) - 1;
+      }
+
+      currentPage = requestPage;
+
+      initList();
+      setupPagination();
+    });
+  }
+
+  function initUserDropdown(){
+    $.ajax({
+      type: "GET",                                         
+      url: SERVER_DOMAIN + "/user/select?role=1",
+      dataType: "json",
+      headers: {'X-AUTH-TOKEN': authToken},
+      success: function (data) {
+        designers = data;
+        $.each(data, function(i,val){  
+          $("#sel_assignee").append("<option value="+val.uid+">"+val.nickname+"</option>");
+          $("#sel_designer").append("<option value="+val.uid+">"+val.nickname+"</option>");
+        });
+      },
+      error: function(e) { 
+        $("#errormsg").html("查询用户列表错误！");
+      } 
+    })
+  }
+
+  function initCustomer(customerId){
+    $.ajax({
+      type: "GET",                                         
+      url: SERVER_DOMAIN + "/customer/read?customerId=" + customerId,
+      dataType: "json",
+      headers: {'X-AUTH-TOKEN': authToken},
+      success: function (data) {  
+        $("#ul_customer_followup").empty();  
+        if (data.customer_followups) {
+          $.each(data.customer_followups, function(i,val){ 
+            var status_change_span = "";
+            if (val.status_old != val.status_new) {
+              status_change_span = "<br/><span class='am-padding-left'>" + getStatusSpan(val.status_old) + "</span>&nbsp;&nbsp;<span class='am-icon-hand-o-right'></span>&nbsp;&nbsp;" + getStatusSpan(val.status_new);
+            }
+
+            $("#ul_customer_followup").append("<li><span class='xmr-green'>"+val.creator_name + "</span>&nbsp;&nbsp;<span class='am-icon-hand-o-right'></span>&nbsp;&nbsp;" + val.method_name + status_change_span + "<br><span class='am-padding'>" + val.comment + "</span><br><span class='xmr-light-grey'><small>跟进时间：" + val.update_time_display + "</small></span></li>");
+          });
+        } 
+
+        $("#alert_comments").modal();
+      },
+      error: function(e) { 
+        $("#errormsg").html("查询清单列表错误！");
+      }
+    }); 
+  }
+
+  function getClassificationSpan(classification, id) {
+    var classification_span = "";
+    if (classification == "A") {
+      classification_span = '<span class="am-badge am-badge-danger" id="'+id+'_sp_classification">重要</span>';
+    } else if (classification == "B") {
+      classification_span = '<span class="am-badge am-badge-secondary" id="'+id+'_sp_classification">普通</span>';
+    } else if (classification == "C") {
+      classification_span = '<span class="am-badge" id="'+id+'_sp_classification">低价值</span>';
+    }
+    return classification_span;
+  }
+
+  function getClassificationSpanStar(classification, id) {
+    var classification_span = "";
+    if (classification == "A") {
+      classification_span = '<span id="'+id+'_sp_classification"><i class="am-icon-star xmr-red"></i><i class="am-icon-star xmr-red"></i><i class="am-icon-star xmr-red"></i></span>';
+    } else if (classification == "B") {
+      classification_span = '<span id="'+id+'_sp_classification"><i class="am-icon-star xmr-red"></i><i class="am-icon-star-half-o xmr-red"></i></span>';
+    } else if (classification == "C") {
+      classification_span = '<span id="'+id+'_sp_classification"><i class="am-icon-star-o xmr-red"></i></span>';
+    }
+    return classification_span;
+  }
+
+  function getClassificationName(classification) {
+    var classification_name = "";
+    if (classification == "A") {
+      classification_name = '重要';
+    } else if (classification == "B") {
+      classification_name = '普通';
+    } else if (classification == "C") {
+      classification_name = '低价值';
+    }
+    return classification_name;
+  }
+
+  function getClassificationClass(classification) {
+    var classification_name = "";
+    if (classification == "A") {
+      classification_name = 'am-badge-danger';
+    } else if (classification == "B") {
+      classification_name = 'am-badge-secondary';
+    } else if (classification == "C") {
+      classification_name = '';
+    }
+    return classification_name;
+  }
+
+  function getStandardStatusSpan(status, id){
+    //状态，1-预约，2-沟通中，3-接待，4-方案制定，5-待签，6-成交，7-放弃，8-付定金，9-待录入，10-搁置
+    var status_span = "";
+    if (status == 1) {
+      status_span = '<span class="am-badge am-badge-darkgreen" id="'+id+'_sp_status">预约</span>';
+    } else if (status == 2) {
+      status_span = '<span class="am-badge am-badge-yellow" id="'+id+'_sp_status">沟通中</span>';
+    } else if (status == 3) {
+      status_span = '<span class="am-badge am-badge-secondary" id="'+id+'_sp_status">接待</span>';
+    } else if (status == 4) {
+      status_span = '<span class="am-badge am-badge-brown" id="'+id+'_sp_status">方案制定</span>';
+    } else if (status == 5) {
+      status_span = '<span class="am-badge am-badge-danger" id="'+id+'_sp_status">待签</span>';
+    } else if (status == 6) {
+      status_span = '<span class="am-badge am-badge-success" id="'+id+'_sp_status">成交</span>';
+    } else if (status == 7) {
+      status_span = '<span class="am-badge" id="'+id+'_sp_status">放弃</span>';
+    } else if (status == 8) {
+      status_span = '<span class="am-badge am-badge-pink" id="'+id+'_sp_status">付定金</span>';
+    } else if (status == 9) {
+      status_span = '<span class="am-badge am-badge-purple" id="'+id+'_sp_status">待录入</span>';
+    } else if (status == 10) {
+      status_span = '<span class="am-badge am-badge-gray" id="'+id+'_sp_status">搁置</span>';
+    }
+    return status_span;
+  }
+
+  function getStatusSpan(status){
+    var status_span = "";
+    if (status == 1) {
+      status_span = '<span class="am-badge am-badge-darkgreen" style="float:none">预约</span>';
+    } else if (status == 2) {
+      status_span = '<span class="am-badge am-badge-yellow" style="float:none">沟通中</span>';
+    } else if (status == 3) {
+      status_span = '<span class="am-badge am-badge-secondary" style="float:none">接待</span>';
+    } else if (status == 4) {
+      status_span = '<span class="am-badge am-badge-brown" style="float:none">方案制定</span>';
+    } else if (status == 5) {
+      status_span = '<span class="am-badge am-badge-danger" style="float:none">待签</span>';
+    } else if (status == 6) {
+      status_span = '<span class="am-badge am-badge-success" style="float:none">成交</span>';
+    } else if (status == 7) {
+      status_span = '<span class="am-badge" style="float:none">放弃</span>';
+    } else if (status == 8) {
+      status_span = '<span class="am-badge am-badge-pink" style="float:none">付定金</span>';
+    } else if (status == 9) {
+      status_span = '<span class="am-badge am-badge-purple" style="float:none">待录入</span>';
+    } else if (status == 10) {
+      status_span = '<span class="am-badge am-badge-gray" style="float:none">搁置</span>';
+    }
+    return status_span;
+  }
+
+  function getStatusName(status){
+    var status_span = "";
+    if (status == 1) {
+      status_span = '预约';
+    } else if (status == 2) {
+      status_span = '沟通中';
+    } else if (status == 3) {
+      status_span = '接待';
+    } else if (status == 4) {
+      status_span = '方案制定';
+    } else if (status == 5) {
+      status_span = '待签';
+    } else if (status == 6) {
+      status_span = '成交';
+    } else if (status == 7) {
+      status_span = '放弃';
+    } else if (status == 8) {
+      status_span = '付定金';
+    } else if (status == 9) {
+      status_span = '待录入';
+    } else if (status == 10) {
+      status_span = '搁置';
+    }
+    return status_span;
+  }
+
+  function getStatusClass(status){
+    var status_span = "";
+    if (status == 1) {
+      status_span = 'am-badge-darkgreen';
+    } else if (status == 2) {
+      status_span = 'am-badge-yellow';
+    } else if (status == 3) {
+      status_span = 'am-badge-secondary';
+    } else if (status == 4) {
+      status_span = 'am-badge-brown';
+    } else if (status == 5) {
+      status_span = 'am-badge-danger';
+    } else if (status == 6) {
+      status_span = 'am-badge-success';
+    } else if (status == 7) {
+      status_span = '';
+    } else if (status == 8) {
+      status_span = 'am-badge-pink';
+    } else if (status == 9) {
+      status_span = 'am-badge-purple';
+    } else if (status == 10) {
+      status_span = 'am-badge-gray';
+    }
+    return status_span;
+  }
+
+  function getDesignerName(designerId){
+    var designerName = "";
+    $.each(designers, function(i,val){ 
+      if (designerId == val.uid){
+        designerName = val.nickname;
+      }
+    });
+    return designerName;
+  }
+
+  function gotoCreate(){
+    window.location.href = "customer-create.html";
+  }
+
+  function assignSave(){
+    $("#loading").modal();
+    var dataObj = {"customer_id": clickedCustomerId, "follower_id_new": $("#sel_assignee").val()};
+
+    $.ajax({
+      type: 'POST',
+      url: SERVER_DOMAIN + "/customer/update",
+      contentType: "application/json",
+      dataType: "json",         
+      headers: {'X-AUTH-TOKEN': authToken},                          
+      data: JSON.stringify(dataObj), 
+      success: function(r) {
+        window.location.href = "customer-list.html";
+        $("#loading").modal("close");
+        $("#alert_success").modal();
+      },
+      error: function(r) { 
+        $("#loading").modal("close");
+        alert("操作失败！");
+      }
+    });
+  }
+
+  function sortByColumn(col){
+    sortingColumnIndex = col;
+    currentPage = 1;
+    initList();
+    initPagination();
+  }
+
+  function initStatusSelection(){
+    var $selected = $('#sel_status');
+    $selected.on('change', function() {
+      selectedStatus = $(this).find('option').eq(this.selectedIndex).val();
+      currentPage = 1;
+      initList();
+      initPagination();
+    });
+  }
+
+  function initClassificationSelection(){
+    var $selected = $('#sel_classification');
+    $selected.on('change', function() {
+      selectedClassification = $(this).find('option').eq(this.selectedIndex).val();
+      currentPage = 1;
+      initList();
+      initPagination();
+    });
+  }
+
+  function initDesignerSelection(){
+    var $selected = $('#sel_designer');
+    $selected.on('change', function() {
+      selectedDesigner = $(this).find('option').eq(this.selectedIndex).val();
+      currentPage = 1;
+      initList();
+      initPagination();
+    });
+  }
+
+  function search(){
+    searchKeyword = $("#keyword").val();
+    currentPage = 1;
+    initList();
+    initPagination();
+  }
+
+  function followupSave(){
+      $("#followup-popup").modal('close');
+      $("#loading").modal();
+      var dataObj = {"customer_id": followupCustomerId, "comment": $("#txt_followup_comment").val(), "method": $("#sel_method").val(), "status_old": $("#hdn_status_old").val(), "status_new": $("#sel_status_new").val()};
+      $.ajax({
+        type: 'POST',
+        url: SERVER_DOMAIN + "/customer/followup",
+        contentType: "application/json",
+        dataType: "json",         
+        headers: {'X-AUTH-TOKEN': authToken},                          
+        data: JSON.stringify(dataObj), 
+        success: function(r) {
+
+          window.location.href = "customer-list.html";
+          $("#loading").modal("close");
+          $("#alert_success").modal();
+        },
+        error: function(r) { 
+          alert("操作失败！");
+          $("#loading").modal("close");
+        }
+      });
+
+  }
+  </script>
+</head>
+<body>
+<!--[if lte IE 9]>
+<p class="browsehappy">你正在使用<strong>过时</strong>的浏览器，Amaze UI 暂不支持。 请 <a href="http://browsehappy.com/" target="_blank">升级浏览器</a>
+  以获得更好的体验！</p>
+<![endif]-->
+
+
+<header class="am-topbar admin-header">
+  <div class="am-topbar-brand">
+    <a href="index2.html"><img src="assets/i/quebec_logo.jpg" class="logo"> &nbsp;<strong>Quebec</strong> <small>后台管理系统</small></a>
+  </div>
+
+  <button class="am-topbar-btn am-topbar-toggle am-btn am-btn-sm am-btn-success am-show-sm-only" data-am-collapse="{target: '#topbar-collapse'}"><span class="am-sr-only">导航切换</span> <span class="am-icon-bars"></span></button>
+
+  <div class="am-collapse am-topbar-collapse" id="topbar-collapse">
+    <ul class="am-nav am-nav-pills am-topbar-nav">
+      <li><a href="order-list.html">订单</a></li>
+      <li id="li_customer" class="am-active"><a href="customer-list.html">客户</a></li>
+      <li id="li_price"><a href="price.html">报价</a></li>
+      <li id="li_dashboard"><a href="dashboard.html">报表</a></li>
+    </ul>
+
+    <ul class="am-nav am-nav-pills am-topbar-nav am-topbar-right admin-header-list">
+      <li class="am-dropdown" data-am-dropdown>
+        <a class="am-dropdown-toggle" data-am-dropdown-toggle href="javascript:;">
+          <span class="am-icon-plus"></span> 快速新建 <span class="am-icon-caret-down"></span>
+        </a>
+        <ul class="am-dropdown-content">
+          <li><a href="customer-create.html"><span class="am-icon-user"></span> 客户</a></li>
+          <li><a href="order-create.html"><span class="am-icon-file-text"></span> 订单</a></li>
+        </ul>
+      </li>
+      <li><a href="javascript:;"><span class="am-icon-envelope-o"></span> 收件箱 <span class="am-badge am-badge-warning">0</span></a></li>
+      <li class="am-dropdown" data-am-dropdown>
+        <a class="am-dropdown-toggle" data-am-dropdown-toggle href="javascript:;">
+          <span class="am-icon-users"></span> <span id="sp_username"></span> <span class="am-icon-caret-down"></span>
+        </a>
+        <ul class="am-dropdown-content">
+          <li><a href="my-info.html"><span class="am-icon-user"></span> 资料</a></li>
+          <li><a href="#"><span class="am-icon-cog"></span> 设置</a></li>
+          <li><a href="javascript:logout();"><span class="am-icon-power-off"></span> 退出</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</header>
+
+<div class="am-cf admin-main">
+  <!-- sidebar start -->
+  <div class="admin-sidebar am-offcanvas" id="admin-offcanvas">
+    <div class="am-offcanvas-bar admin-offcanvas-bar">
+      <ul class="am-list admin-sidebar-list">
+        <li><a href="customer-list.html"><span class="am-icon-table"></span> 客户</a></li>
+      </ul>
+
+      <div class="am-panel am-panel-default admin-sidebar-panel">
+        <div class="am-panel-bd">
+          <p><span class="am-icon-bookmark"></span> 公告</p>
+          <p>时间就是生命，我的朋友。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- sidebar end -->
+
+  <!-- content start -->
+  <div class="admin-content">
+
+    <div class="am-cf am-padding">
+      <div class="am-fl am-cf"><strong class="am-text-primary am-text-lg">客户列表</strong></div>
+    </div>
+
+    <div class="am-g">
+      <div class="am-u-sm-12 am-u-md-3">
+        <div class="am-btn-toolbar">
+          <div class="am-btn-group am-btn-group-xs">
+            <button id="create" type="button" class="am-btn am-btn-default" onclick="gotoCreate()"><span class="am-icon-plus"></span> 新增</button>
+            <!--<button type="button" class="am-btn am-btn-default"><span class="am-icon-save"></span> 保存</button>
+            <button type="button" class="am-btn am-btn-default"><span class="am-icon-archive"></span> 审核</button>
+            <button type="button" class="am-btn am-btn-default"><span class="am-icon-trash-o"></span> 删除</button>-->
+          </div>
+        </div>
+      </div>
+      <div class="am-u-sm-12 am-u-md-2">
+        <div class="am-form-group">
+
+          &nbsp;
+
+          
+        </div>
+      </div>
+      <div class="am-u-sm-12 am-u-md-4">
+        <div class="am-form-group">
+          <!-- 状态，1-预约，2-沟通中，3-接待，4-方案制定，5-待签，6-成交，7-放弃，8-付定金，9-待录入，10-搁置 -->
+          <select data-am-selected="{btnWidth: '100px', btnSize: 'sm'}" id="sel_status">
+            <option value="-1">客户进度</option>
+            <option value="1">预约</option>
+            <option value="2">沟通中</option>
+            <option value="3">接待</option>
+            <option value="4">方案制定</option>
+            <option value="5">待签</option>
+            <option value="6">成交</option>
+            <option value="7">放弃</option>
+            <option value="8">付定金</option>
+            <option value="9">待录入</option>
+            <option value="10">搁置</option>
+          </select>
+
+          <select data-am-selected="{btnWidth: '100px', btnSize: 'sm'}" id="sel_classification">
+            <option value="0">重要程度</option>
+            <option value="A">重要</option>
+            <option value="B">普通</option>
+            <option value="C">低价值</option>
+          </select>
+
+          <select data-am-selected="{btnWidth: '100px', btnSize: 'sm'}" id="sel_designer">
+            <option value="-1">设计师</option>
+            <option value="10000006">伊莉娜</option>
+          </select>
+        </div>
+      </div>
+      <div class="am-u-sm-12 am-u-md-3">
+        <div class="am-input-group am-input-group-sm">
+          <input type="text" class="am-form-field" id="keyword" placeholder="姓名/电话号码">
+          <span class="am-input-group-btn">
+            <button class="am-btn am-btn-default" type="button" onclick="search()">搜索</button>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="am-g" style="margin-bottom:300px">
+      <div class="am-u-sm-12">
+        <form class="am-form">
+          <table id="table-customer" class="am-table am-table-bd am-table-striped admin-content-table am-table-compact am-table-hover">
+            <thead>
+            <tr>
+              <th><a href="javascript:sortByColumn('0')">姓名</a> <i class="am-icon-long-arrow-up xmr-red"></i></th>
+              <th><a href="javascript:sortByColumn('1')">重要程度</a> <i class="am-icon-long-arrow-up xmr-red"></i></th>
+              <th>电话</th>
+              <th><a href="javascript:sortByColumn('3')">跟进状态</a> <i class="am-icon-long-arrow-up xmr-red"></i></th>
+              <th>最新跟进记录</th>
+              <th><a href="javascript:sortByColumn('5')">最新跟进时间</a> <i class="am-icon-long-arrow-down xmr-red"></i></th>
+              <th><a href="javascript:sortByColumn('6')">负责人</a> <i class="am-icon-long-arrow-up xmr-red"></i></th>
+              
+            </tr>
+            </thead>
+            <tbody>
+            
+            </tbody>
+          </table>
+
+          <div class="am-cf">
+            共 <span id="record_count"></span> 条记录
+            <span id="edit_result"></span>
+            <div class="am-fr">
+              <ul class="am-pagination">
+                
+              </ul>
+            </div>
+          </div>
+          
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="am-popup" style="height:300px" id="assign-popup">
+    <div class="am-popup-inner">
+      <div class="am-popup-hd">
+        <h4 class="am-popup-title">指派客户</h4>
+        <span data-am-modal-close class="am-close">&times;</span>
+      </div>
+      <div class="am-popup-bd">
+        <div class="am-u-sm-3">&nbsp;</div>
+        <div class="am-u-sm-6">
+          指派给：
+          <select id="sel_assignee" data-am-selected="{btnWidth: '100px', btnSize: 'sm'}" >
+          </select>
+          &nbsp;
+          <button id="btn_assign_save" type="button" class="am-btn-s am-btn-primary am-radius" onclick="assignSave()">确定</button>
+        </div>
+        <div class="am-u-sm-3">&nbsp;</div>
+        &nbsp;
+      </div>
+      
+    </div>
+  </div>
+
+  <div class="am-modal am-modal-loading am-modal-no-btn" tabindex="-1" id="loading">
+    <div class="am-modal-dialog">
+      <div class="am-modal-hd">正在处理...</div>
+      <div class="am-modal-bd">
+        <span class="am-icon-spinner am-icon-spin"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="am-modal am-modal-alert" tabindex="-1" id="alert_comments">
+    <div class="am-modal-dialog">
+      <div class="am-modal-hd">所有跟进记录</div>
+      <div class="am-modal-bd">
+        <ul class="am-list am-list-static" id="ul_customer_followup" style="text-align: left;overflow-y: scroll; height: 500px">
+            
+        </ul>
+      </div>
+      <div class="am-modal-footer">
+        <span class="am-modal-btn">确定</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="am-popup" id="followup-popup">
+    <div class="am-popup-inner">
+      <div class="am-popup-hd">
+        <h4 class="am-popup-title">写跟进</h4>
+        <span data-am-modal-close class="am-close">&times;</span>
+      </div>
+      <div class="am-popup-bd">
+        <div class="am-u-sm-12">
+          客户：<span id="sp_followup_customer_name"></span>
+          <span class="am-fr">
+            <div class="am-form-group am-form-select">
+              <!-- 状态，1-预约，2-沟通中，3-接待，4-方案制定，5-待签，6-成交，7-放弃，8-付定金，9-待录入，10-搁置 -->
+              <select id="sel_status_new" data-am-selected="{btnWidth: '100px', btnSize: 'sm'}">
+                <option value="-1">客户进度</option>
+                <option value="1">预约</option>
+                <option value="2">沟通中</option>
+                <option value="3">接待</option>
+                <option value="4">方案制定</option>
+                <option value="5">待签</option>
+                <option value="6">成交</option>
+                <option value="7">放弃</option>
+                <option value="8">付定金</option>
+                <option value="9">待录入</option>
+                <option value="10">搁置</option>
+              </select>
+            </div>
+          </span>
+        </div>
+
+        <div class="am-tab-panel am-fade am-in am-active am-form">
+          <textarea class="xmr-font" id="txt_followup_comment" rows="4" placeholder="勤跟进，勤记录！请输入新的跟进记录..." style="font-size:14px"></textarea>
+        </div>
+
+        <div class="am-form-group am-form-select am-padding">
+          跟进方式
+          <select id="sel_method" data-am-selected="{btnWidth: '100px', btnSize: 'sm'}" >
+          <!-- 跟进方式，1-电话，2-微信，3-拜访，4-短信，5-邮件，0-其他 -->
+            <option value="1">电话</option>
+            <option value="2">微信</option>
+            <option value="3">拜访</option>
+            <option value="4">短信</option>
+            <option value="5">邮件</option>
+            <option value="0">其他</option>
+          </select>
+        </div>
+      </div>
+      <footer>
+        <div class="am-u-sm-10">&nbsp;</div>
+        <div class="am-u-sm-2">
+          <button id="followup-save-btn" type="button" class="am-btn-s am-btn-primary am-radius" onclick="followupSave()">保存</button>
+        </div>
+      </footer>
+    </div>
+    <input type="hidden" id="hdn_status_old" />
+  </div>
+  <!-- content end -->
+</div>
+
+<a href="#" class="am-icon-btn am-icon-th-list am-show-sm-only admin-menu" data-am-offcanvas="{target: '#admin-offcanvas'}"></a>
+
+<footer>
+  <!-- <hr> -->
+  <p class="am-padding-left law">© 2014 Xiaomu.ren, Inc. Licensed under MIT license.</p>
+</footer>
+
+
+</body>
+</html>

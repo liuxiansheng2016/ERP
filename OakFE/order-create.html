@@ -1,0 +1,644 @@
+<!doctype html>
+<html class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Quebec</title>
+  <meta name="description" content="这是一个form页面">
+  <meta name="keywords" content="form">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <link rel="icon" type="image/png" href="assets/i/favicon.png">
+  <link rel="apple-touch-icon-precomposed" href="assets/i/app-icon72x72@2x.png">
+  <meta name="apple-mobile-web-app-title" content="Amaze UI" />
+  <link rel="stylesheet" href="assets/css/amazeui.min.css"/>
+  <link rel="stylesheet" href="assets/css/admin.css">
+  <link rel="stylesheet" href="assets/css/imagestyle.css" media="screen" type="text/css" />
+
+  <style>
+    .pic-thumbnail {
+      width: 40px;
+      height: 30px;
+    }
+
+  </style>
+  <!--[if lt IE 9]>
+  <script src="http://libs.baidu.com/jquery/1.11.1/jquery.min.js"></script>
+  <script src="http://cdn.staticfile.org/modernizr/2.8.3/modernizr.js"></script>
+  <script src="assets/js/amazeui.ie8polyfill.min.js"></script>
+  <![endif]-->
+
+  <!--[if (gte IE 9)|!(IE)]><!-->
+  <script src="assets/js/jquery.min.js"></script>
+  <!--<![endif]-->
+  <script src="assets/js/amazeui.min.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/general.js"></script>
+  
+  <script type="text/javascript">
+    var authToken = sessionStorage.getItem("X-AUTH-TOKEN");
+    
+    $(document).ready(function(){
+      var materials;
+      $.ajax({
+        type: "GET",
+        url: SERVER_DOMAIN + "/order/item/materials",
+        dataType: "json",
+        headers: {'X-AUTH-TOKEN': authToken},
+        success: function (data) {
+          // sessionStorage.setItem("materials", JSON.stringify(data.materials));
+          $("#accessory_select").append("<option value='-1'>无</option>");
+          $.each(data.materials, function(i,val){  
+            $("#material_select").append("<option value='"+val.id+"'>"+val.name+"</option>");
+            $("#accessory_select").append("<option value='"+val.id+"'>"+val.name+"</option>");
+          });
+        },
+        error: function(e) { 
+          $("#errormsg").html("查询材料列表错误！");
+        } 
+      });
+      
+      var colors;
+      $.ajax({
+        type: "GET",
+        url: SERVER_DOMAIN + "/order/item/colors",
+        dataType: "json",
+        headers: {'X-AUTH-TOKEN': authToken},
+        success: function (data) {
+          // sessionStorage.setItem("materials", JSON.stringify(data.materials));
+          $.each(data.colors, function(i,val){  
+            $("#color_select").append("<option value='"+val.id+"'>"+val.name+"</option>");
+          });
+        },
+        error: function(e) { 
+          $("#errormsg").html("查询颜色列表错误！");
+        } 
+      });
+
+      var skus;
+      if (sessionStorage.getItem("skus")) {
+        skus = JSON.parse(sessionStorage.getItem("skus"));
+      } else {
+        $.ajax({
+          type: "GET",                                         
+          url: SERVER_DOMAIN + "/sku/select",
+          dataType: "json",
+          headers: {'X-AUTH-TOKEN': authToken},
+          success: function (data) {                    
+            sessionStorage.setItem("skus", JSON.stringify(data.data));
+          },
+          error: function(e) { 
+            $("#errormsg").html("邮箱或密码错误！");
+          } 
+        })
+      }
+
+      // 改为用input了
+      // if (skus) {
+      //   $.each(skus, function(i,val){  
+      //     $("#sku_select").append('<option value="'+val.furnishing_id+'">'+val.furnishing_id+'</option>');
+      //   });
+      // }
+
+      var item_ids = "";
+
+      $("#add_order_item").click(function(){
+        //var formData = new FormData($( "#form_upload" )[0]);
+        var data = new FormData();
+        $.each($('#effect_pic')[0].files, function(i, file) {
+            data.append('effect_pic_'+i, file);
+        });
+        $.each($('#cad_pic')[0].files, function(i, file) {
+            data.append('cad_pic_'+i, file);
+        });
+        data.append("furnishing_id", $("#sku_id").val());
+        data.append("cost", $("#cost").val());
+        data.append("price", $("#price").val());
+        data.append("count", $("#count").val());
+        data.append("material_id", $("#material_select").val());
+        data.append("color_id", $("#color_select").val());
+        data.append("accessory_id", $("#accessory_select").val());
+        
+        $.ajax({
+            type: 'POST',
+            url: SERVER_DOMAIN + "/order/item/create",
+            data: data,
+            processData: false,
+            contentType: false,  
+            //contentType:"multipart/form-data",   
+            headers: {'X-AUTH-TOKEN': authToken},                   
+            success: function(r) {
+              var effect_img = '<img class="pic-thumbnail" src="'+r.effect_img_url+'" data-src-wide="'+r.effect_img_url+'" alt="BINGOO" />';
+              var cad_img = '<img class="pic-thumbnail" src="'+r.cad_url+'" data-src-wide="'+r.cad_url+'" alt="BINGOO" />';
+
+              $("#order_items").append('<tr><td>'+$("#sku_id").val()+'</td><td>'+$("#count").val()+'</td><td>'+$("#material_select").find("option:selected").text()+'</td><td>'+$("#accessory_select").find("option:selected").text()+'</td><td>'+$("#color_select").find("option:selected").text()+'</td><td>'+cad_img+'</td><td>'+effect_img+'</td><td>￥'+$("#cost").val()+'</td><td>￥'+$("#price").val()+'</td></tr>');
+
+              if (item_ids.length > 0) {
+                item_ids += ",";
+              }
+              item_ids += r.id;
+            },
+            error: function(r) { 
+              $("#effect_result").html("error");
+            }
+        });
+      });
+
+      
+      $("#order_create").click(function(){
+        var data = new FormData();
+        $.each($('#design_file')[0].files, function(i, file) {
+            data.append('design_file_'+i, file);
+        });
+        $.each($('#contract_file')[0].files, function(i, file) {
+            data.append('contract_file_'+i, file);
+        });
+        $.each($('#delivery_file')[0].files, function(i, file) {
+            data.append('delivery_file_'+i, file);
+        });
+
+        var order_name = $("#order_name").val();
+        var order_desc = $("#order_desc").val();
+        var due_date = $("#due_date").val();
+        var order_date = $("#order_date").val();
+        var cost = $("#order_cost").val();
+        var price = $("#order_price").val();
+        var settled_factory = $("input[name='radio_settled_factory']:checked").val();
+        var contract_no = $("#contract_no").val();
+
+        // var customer_name = $("#customer-name").val();
+        // var customer_phone = $("#customer-phone").val();
+        // var customer_city = $("#customer-city").val();
+        // var customer_address = $("#customer-address").val();
+        // var customer_email = $("#customer-email").val();
+        // var customer_remarks = $("#customer-remarks").val();
+
+        data.append("name", order_name);
+        data.append("description", order_desc);
+        // data.append("customer_id", 1);
+        data.append("item_ids", item_ids);
+        data.append("order_date", order_date);
+        data.append("due_date", due_date);
+        data.append("cost", cost);
+        data.append("price", price);
+        data.append("settled_factory", settled_factory);
+        // data.append("customer_name", customer_name);
+        // data.append("customer_phone", customer_phone);
+        // data.append("customer_city", customer_city);
+        // data.append("customer_address", customer_address);
+        // data.append("customer_email", customer_email);
+        // data.append("customer_remarks", customer_remarks);
+        data.append("customer_id", $("#sel_customer").val());
+        data.append("contract_no", contract_no);
+
+        // var dataObj = {"name": order_name,"description": order_desc,"customer_id":1,"item_ids":item_ids,"due_date":due_date,"cost":cost,"price":price, "customer_name": customer_name, "customer_phone": customer_phone, "customer_city": customer_city, "customer_address": customer_address, "customer_email": customer_email, "customer_remarks": customer_remarks};
+
+        $.ajax({
+            type: 'POST',
+            url: SERVER_DOMAIN + "/order/create",
+            data: data,
+            processData: false,
+            contentType: false,  
+            headers: {'X-AUTH-TOKEN': authToken},                          
+            success: function(r) {
+              $("#loading").modal('close');
+              $("#alert-success").modal();
+            },
+            error: function(r) { 
+              $("#loading").modal('close');
+              $("#alert-failure").modal();
+            }
+        });
+      });
+
+      $("#item_list_link").click(function(e){
+        sessionStorage.removeItem("orderId");
+        window.location.href = "item-list.html";
+      });
+
+
+      $.ajax({
+        type: "GET",                                         
+        url: SERVER_DOMAIN + "/customer/select?count=100000",
+        dataType: "json",
+        headers: {'X-AUTH-TOKEN': authToken},
+        success: function (data) {  
+          $("#sel_customer").empty();                  
+          $.each(data.data, function(i,val){  
+            $("#sel_customer").append("<option value='"+val.id+"'>"+val.name+"&nbsp;&nbsp;"+val.phone_number+"</option>");
+          });
+        },
+        error: function(e) { 
+          $("#errormsg").html("没有查询到结果！");
+        }
+      }) 
+    });
+
+  </script>
+</head>
+<body>
+<!--[if lte IE 9]>
+<p class="browsehappy">你正在使用<strong>过时</strong>的浏览器，Amaze UI 暂不支持。 请 <a href="http://browsehappy.com/" target="_blank">升级浏览器</a>
+  以获得更好的体验！</p>
+<![endif]-->
+
+<header class="am-topbar admin-header">
+  <div class="am-topbar-brand">
+    <a href="index2.html"><img src="assets/i/quebec_logo.jpg" class="logo"> &nbsp;<strong>Quebec</strong> <small>后台管理系统</small></a>
+  </div>
+
+  <button class="am-topbar-btn am-topbar-toggle am-btn am-btn-sm am-btn-success am-show-sm-only" data-am-collapse="{target: '#topbar-collapse'}"><span class="am-sr-only">导航切换</span> <span class="am-icon-bars"></span></button>
+
+  <div class="am-collapse am-topbar-collapse" id="topbar-collapse">
+    <ul class="am-nav am-nav-pills am-topbar-nav">
+      <li class="am-active"><a href="order-list.html">订单</a></li>
+      <li id="li_customer"><a href="customer-list.html">客户</a></li>
+      <li id="li_price"><a href="price.html">报价</a></li>
+      <li id="li_dashboard"><a href="dashboard.html">报表</a></li>
+    </ul>
+
+    <ul class="am-nav am-nav-pills am-topbar-nav am-topbar-right admin-header-list">
+      <li class="am-dropdown" data-am-dropdown>
+        <a class="am-dropdown-toggle" data-am-dropdown-toggle href="javascript:;" id="fast_create">
+          <span class="am-icon-plus"></span> 快速新建 <span class="am-icon-caret-down"></span>
+        </a>
+        <ul class="am-dropdown-content">
+          <li><a href="customer-create.html"><span class="am-icon-user"></span> 客户</a></li>
+          <li><a href="order-create.html"><span class="am-icon-file-text"></span> 订单</a></li>
+        </ul>
+      </li>
+      <li><a href="javascript:;"><span class="am-icon-envelope-o"></span> 收件箱 <span class="am-badge am-badge-warning">0</span></a></li>
+      <li class="am-dropdown" data-am-dropdown>
+        <a class="am-dropdown-toggle" data-am-dropdown-toggle href="javascript:;">
+          <span class="am-icon-users"></span> <span id="sp_username"></span> <span class="am-icon-caret-down"></span>
+        </a>
+        <ul class="am-dropdown-content">
+          <li><a href="my-info.html"><span class="am-icon-user"></span> 资料</a></li>
+          <li><a href="#"><span class="am-icon-cog"></span> 设置</a></li>
+          <li><a href="javascript:logout();"><span class="am-icon-power-off"></span> 退出</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</header>
+
+<div class="am-cf admin-main">
+  <!-- sidebar start -->
+  <div class="admin-sidebar am-offcanvas" id="admin-offcanvas">
+    <div class="am-offcanvas-bar admin-offcanvas-bar">
+      <ul class="am-list admin-sidebar-list">
+        <li id="list-li" class="admin-parent">
+          <a class="am-cf" data-am-collapse="{target: '#list-nav'}"><span class="am-icon-table"></span> 订单 <span class="am-icon-angle-right am-fr am-margin-right"></span></a>
+          <ul class="am-list am-collapse admin-sidebar-sub am-in" id="list-nav">
+            <li><a href="order-list.html" class="am-cf"><span class="am-icon-check"></span> 订单列表</a></li>
+            <li><a id="item_list_link" href="#"><span class="am-icon-check"></span> 清单列表</a></li>
+            
+          </ul>
+        </li>
+
+        <li id="meta-li" class="admin-parent">
+          <a class="am-cf" data-am-collapse="{target: '#collapse-nav'}"><span class="am-icon-file"></span> 基础数据 <span class="am-icon-angle-right am-fr am-margin-right"></span></a>
+          <ul class="am-list am-collapse admin-sidebar-sub am-in" id="collapse-nav">
+            <li><a href="sku-list.html"><span class="am-icon-check"></span> SKU列表</a></li>
+          </ul>
+        </li>
+
+        
+      </ul>
+
+      <div class="am-panel am-panel-default admin-sidebar-panel">
+        <div class="am-panel-bd">
+          <p><span class="am-icon-bookmark"></span> 公告</p>
+          <p>时间就是金钱，我的朋友。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- sidebar end -->
+
+<!-- content start -->
+<div class="admin-content">
+
+  <div class="am-cf am-padding">
+    <div class="am-fl am-cf"><strong class="am-text-primary am-text-lg">新订单</strong></div>
+  </div>
+
+  <div class="am-tabs am-margin" data-am-tabs>
+    <ul class="am-tabs-nav am-nav am-nav-tabs">
+      <li class="am-active"><a href="#tab1">订单信息</a></li>
+      <li><a href="#tab2">家具清单</a></li>
+      <!-- <li><a href="#tab3">客户信息</a></li> -->
+    </ul>
+
+    <div class="am-tabs-bd">
+      <div class="am-tab-panel am-fade am-in am-active am-form" id="tab1">
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">客户</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <select data-am-selected="{searchBox: 1}" id="sel_customer">
+              
+            </select>
+          </div>
+          <div class="am-hide-sm-only am-u-md-6">*必填</div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">标题</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <input id="order_name" type="text" class="am-input-sm" placeholder='需包含客户姓名，方便检索，如"王先生2室2厅订单"'>
+          </div>
+          <div class="am-hide-sm-only am-u-md-6">*必填</div>
+        </div>
+
+        <div class="am-g am-margin-top-sm">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">描述</div>
+          <div class="am-u-sm-8 am-u-md-4 am-u-end">
+            <textarea id="order_desc" rows="4" style="font-size:14px;" placeholder="订单任何需要注意的地方，请尽量详述"></textarea>
+          </div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">成交日期</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <input id="order_date" type="text" class="am-input-sm">
+          </div>
+          <div class="am-hide-sm-only am-u-md-6">格式为yyyy-MM-dd</div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">送货时间</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <input id="due_date" type="text" class="am-input-sm">
+          </div>
+          <div class="am-hide-sm-only am-u-md-6">格式为yyyy-MM-dd</div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">出厂价</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <input id="order_cost" type="text" class="am-input-sm">
+          </div>
+          <div class="am-hide-sm-only am-u-md-6"></div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">售价</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <input id="order_price" type="text" class="am-input-sm">
+          </div>
+          <div class="am-hide-sm-only am-u-md-6"></div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">合同编号</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <input id="contract_no" type="text" class="am-input-sm" placeholder="合同编号">
+          </div>
+          <div class="am-hide-sm-only am-u-md-6">*必填</div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">供应商结算</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <div class="am-form-group">
+              <label class="am-radio-inline">
+                <input type="radio" value="0" name="radio_settled_factory" checked> 未结
+              </label>
+              <label class="am-radio-inline">
+                <input type="radio" value="1" name="radio_settled_factory"> 已结
+              </label>
+            </div>
+          </div>
+          <div class="am-hide-sm-only am-u-md-6"></div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">设计文件</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <input id="design_file" type="file" >
+            <p class="am-form-help">请选择要上传的文件...</p>
+            <div id="design_result"></div>
+          </div>
+          <div class="am-hide-sm-only am-u-md-6"></div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">送货单</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <input id="delivery_file" type="file" >
+            <p class="am-form-help">请选择要上传的文件...</p>
+            <div id="delivery_result"></div>
+          </div>
+          <div class="am-hide-sm-only am-u-md-6"></div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">合同</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <input id="contract_file" type="file" >
+            <p class="am-form-help">请选择要上传的文件...</p>
+            <div id="contract_result"></div>
+          </div>
+          <div class="am-hide-sm-only am-u-md-6"></div>
+        </div>
+      </div>
+
+      <div class="am-tab-panel am-fade am-form" id="tab2">
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">SKU</div>
+          <div class="am-u-sm-8 am-u-md-4">
+            <input id="sku_id" type="text" class="am-input-sm">
+          </div>
+          <div class="am-hide-sm-only am-u-md-6">*必填</div>
+        </div>
+
+        <div class="am-g am-margin-top-sm">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">材料</div>
+          <div class="am-u-sm-8 am-u-md-4 am-u-end">
+            <div class="am-form-group">
+              <select id="material_select" data-am-selected="{btnSize: 'sm'}">
+                
+              </select>
+            </div>
+          </div>
+        </div> 
+
+        <div class="am-g am-margin-top-sm">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">辅料</div>
+          <div class="am-u-sm-8 am-u-md-4 am-u-end">
+            <div class="am-form-group">
+              <select id="accessory_select" data-am-selected="{btnSize: 'sm'}">
+                
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="am-g am-margin-top-sm">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">颜色</div>
+          <div class="am-u-sm-8 am-u-md-4 am-u-end">
+            <div class="am-form-group">
+              <select id="color_select" data-am-selected="{btnSize: 'sm'}">
+                
+              </select>
+            </div>
+          </div>
+        </div> 
+
+        <div class="am-g am-margin-top-sm">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">数量</div>
+          <div class="am-u-sm-8 am-u-md-4 am-u-end">
+            <input id="count" type="text" class="am-input-sm">
+          </div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">CAD</div>
+          <div class="am-u-sm-8 am-u-md-10">
+            <input id="cad_pic" type="file" >
+            <p class="am-form-help">请选择要上传的文件...</p>
+            <div id="cad_result"></div>
+          </div>
+        </div>
+
+        <div class="am-g am-margin-top">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">效果图</div>
+          <div class="am-u-sm-8 am-u-md-10">
+            <input id="effect_pic" type="file">
+            <p class="am-form-help">请选择要上传的文件...</p>
+            <div id="effect_result"></div>
+          </div>
+          
+        </div>
+
+        <div class="am-g am-margin-top-sm">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">出厂价</div>
+          <div class="am-u-sm-8 am-u-md-4 am-u-end">
+            <input id="cost" type="text" class="am-input-sm">
+          </div>
+        </div>
+
+        <div class="am-g am-margin-top-sm">
+          <div class="am-u-sm-4 am-u-md-2 am-text-right">售价</div>
+          <div class="am-u-sm-8 am-u-md-4 am-u-end">
+            <input id="price" type="text" class="am-input-sm">
+          </div>
+        </div>
+
+        
+
+        <button id="add_order_item" type="button" class="am-btn am-btn-primary am-btn-xs">增加</button>
+
+        <table id="order_items" class="am-table am-table-bd am-table-striped admin-content-table">
+            <thead>
+            <tr>
+              <th>SKU</th><th>数量</th><th>材料</th><th>辅料</th><th>颜色</th><th>CAD</th><th>效果图</th><th>出厂价</th><th>售价</th>
+            </tr>
+            </thead>
+            <tbody>
+            
+            </tbody>
+          </table>
+
+      </div>
+
+      <!-- <div class="am-tab-panel am-fade am-form" id="tab3">
+        <form class="am-form">
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">姓名</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <input id="customer-name" type="text" class="am-input-sm">
+            </div>
+            <div class="am-hide-sm-only am-u-md-6">*必填</div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">电话</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <input id="customer-phone" type="text" class="am-input-sm">
+            </div>
+            <div class="am-hide-sm-only am-u-md-6">*必填</div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">城市</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <input id="customer-city" type="text" class="am-input-sm">
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">地址</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <input id="customer-address" type="text" class="am-input-sm">
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">邮箱</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <input id="customer-email" type="text" class="am-input-sm">
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">
+              备注
+            </div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <textarea id="customer-remarks" rows="4"></textarea>
+            </div>
+          </div>
+        </form>
+      </div> -->
+
+    </div>
+  </div>
+
+  <div class="am-margin">
+    <button id="order_create" type="button" class="am-btn am-btn-primary am-btn-xs" data-am-modal="{target: '#loading'}">提交</button>
+    <div id="order_result"></div>
+  </div>
+</div>
+
+<div class="am-modal am-modal-loading am-modal-no-btn" tabindex="-1" id="loading">
+  <div class="am-modal-dialog">
+    <div class="am-modal-hd">正在处理...</div>
+    <div class="am-modal-bd">
+      <span class="am-icon-spinner am-icon-spin"></span>
+    </div>
+  </div>
+</div>
+
+<div class="am-modal am-modal-alert" tabindex="-1" id="alert-success">
+  <div class="am-modal-dialog">
+    <div class="am-modal-bd">创建成功！</div>
+    <div class="am-modal-footer">
+      <span class="am-modal-btn">确定</span>
+    </div>
+  </div>
+</div>
+
+<div class="am-modal am-modal-alert" tabindex="-1" id="alert-failure">
+  <div class="am-modal-dialog">
+    <div class="am-modal-bd">创建失败！</div>
+    <div class="am-modal-footer">
+      <span class="am-modal-btn">确定</span>
+    </div>
+  </div>
+</div>
+<!-- content end -->
+
+</div>
+
+<a href="#" class="am-icon-btn am-icon-th-list am-show-sm-only admin-menu" data-am-offcanvas="{target: '#admin-offcanvas'}"></a>
+
+<footer>
+  <!-- <hr> -->
+  <p class="am-padding-left law">© 2014 Xiaomu.ren, Inc. Licensed under MIT license.</p>
+</footer>
+
+
+</body>
+</html>

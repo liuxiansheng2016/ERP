@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="content-type" content="text/html" charset='UTF-8'>
+    <title></title>
+    <link rel="stylesheet" href="http://cdn.amazeui.org/amazeui/2.7.2/css/amazeui.min.css"/>
+    <link rel="stylesheet" type="text/css" href="index.css">
+    <script src="http://s.amazeui.org/assets/2.x/js/jquery.min.js"></script>
+    <script type="text/javascript" src="http://cdn.amazeui.org/amazeui/2.7.2/js/amazeui.min.js"></script>
+    <script type="text/javascript" src="http://7xjlz2.com1.z0.glb.clouddn.com/blocksit.min.js"></script>
+    <script src="http://cdn.hcharts.cn/highcharts/highcharts.js"></script>
+</head>
+<body>
+    <div id="main"></div>
+    <script src="index.js"></script> 
+</body>
+</html>

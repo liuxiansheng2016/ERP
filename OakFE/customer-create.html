@@ -1,0 +1,283 @@
+<!doctype html>
+<html class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Quebec</title>
+  <meta name="description" content="这是一个form页面">
+  <meta name="keywords" content="form">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="renderer" content="webkit">
+  <meta http-equiv="Cache-Control" content="no-siteapp" />
+  <link rel="icon" type="image/png" href="assets/i/favicon.png">
+  <link rel="apple-touch-icon-precomposed" href="assets/i/app-icon72x72@2x.png">
+  <meta name="apple-mobile-web-app-title" content="Amaze UI" />
+  <link rel="stylesheet" href="assets/css/amazeui.min.css"/>
+  <link rel="stylesheet" href="assets/css/admin.css">
+
+  <!--[if lt IE 9]>
+  <script src="http://libs.baidu.com/jquery/1.11.1/jquery.min.js"></script>
+  <script src="http://cdn.staticfile.org/modernizr/2.8.3/modernizr.js"></script>
+  <script src="assets/js/amazeui.ie8polyfill.min.js"></script>
+  <![endif]-->
+
+  <!--[if (gte IE 9)|!(IE)]><!-->
+  <script src="assets/js/jquery.min.js"></script>
+  <!--<![endif]-->
+  <script src="assets/js/amazeui.min.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/general.js"></script>
+
+  <script type="text/javascript">
+    var authToken = sessionStorage.getItem("X-AUTH-TOKEN");
+
+    $(document).ready(function(){
+
+      initCitySelection();
+
+      $("#customer_create").click(function(){
+        var name = $("#customer_name").val();
+        var phone = $("#phone").val();
+        if (!name) {
+          alert("客户姓名不能为空");
+          return;
+        }
+        if (!phone) {
+          alert("客户电话号码不能为空");
+          return;
+        }
+
+        var city = $("#city_select").val();
+        var address = $("#address").val();
+        var email = $("#email").val();
+        var remarks = $("#remarks").val();
+        var channel = $("#channel_select").val();
+
+        var classification = $('[name="radio_classification"]').filter(':checked').val();
+
+        var dataObj = {"name": name,"phone_number": phone,"city": city,"address":address,"email":email,"remarks":remarks, "classification":classification, "channel": channel};
+
+        $.ajax({
+            type: 'POST',
+            url: SERVER_DOMAIN + "/customer/create",
+            contentType: "application/json",
+            dataType: "json",         
+            headers: {'X-AUTH-TOKEN': authToken},                          
+            data: JSON.stringify(dataObj),    
+            success: function(r) {
+              $("#create_result").html("创建成功！");
+            },
+            error: function(r) { 
+              $("#create_result").html("创建失败！");
+            }
+        });
+      });
+
+    });
+
+    function initCitySelection(){
+      var cities;
+      $.ajax({
+        type: "GET",
+        url: SERVER_DOMAIN + "/customer/cities",
+        dataType: "json",
+        headers: {'X-AUTH-TOKEN': authToken},
+        success: function (data) {
+          sessionStorage.setItem("cities", JSON.stringify(data.cities));
+          $.each(data.cities, function(i,val){  
+            $("#city_select").append("<option value='"+val.id+"'>"+val.name+"</option>");
+          });
+        },
+        error: function(e) { 
+          $("#errormsg").html("查询颜色列表错误！");
+        } 
+      });
+    }
+    
+  </script>
+</head>
+<body>
+<!--[if lte IE 9]>
+<p class="browsehappy">你正在使用<strong>过时</strong>的浏览器，Amaze UI 暂不支持。 请 <a href="http://browsehappy.com/" target="_blank">升级浏览器</a>
+  以获得更好的体验！</p>
+<![endif]-->
+
+<header class="am-topbar admin-header">
+  <div class="am-topbar-brand">
+    <a href="index2.html"><img src="assets/i/quebec_logo.jpg" class="logo"> &nbsp;<strong>Quebec</strong> <small>后台管理系统</small></a>
+  </div>
+
+  <button class="am-topbar-btn am-topbar-toggle am-btn am-btn-sm am-btn-success am-show-sm-only" data-am-collapse="{target: '#topbar-collapse'}"><span class="am-sr-only">导航切换</span> <span class="am-icon-bars"></span></button>
+
+  <div class="am-collapse am-topbar-collapse" id="topbar-collapse">
+    <ul class="am-nav am-nav-pills am-topbar-nav">
+      <li><a href="order-list.html">订单</a></li>
+      <li id="li_customer" class="am-active"><a href="customer-list.html">客户</a></li>
+      <li id="li_price"><a href="price.html">报价</a></li>
+      <li id="li_dashboard"><a href="dashboard.html">报表</a></li>
+    </ul>
+
+    <ul class="am-nav am-nav-pills am-topbar-nav am-topbar-right admin-header-list">
+      <li class="am-dropdown" data-am-dropdown>
+        <a class="am-dropdown-toggle" data-am-dropdown-toggle href="javascript:;">
+          <span class="am-icon-plus"></span> 快速新建 <span class="am-icon-caret-down"></span>
+        </a>
+        <ul class="am-dropdown-content">
+          <li><a href="customer-create.html"><span class="am-icon-user"></span> 客户</a></li>
+          <li><a href="order-create.html"><span class="am-icon-file-text"></span> 订单</a></li>
+        </ul>
+      </li>
+      <li><a href="javascript:;"><span class="am-icon-envelope-o"></span> 收件箱 <span class="am-badge am-badge-warning">0</span></a></li>
+      <li class="am-dropdown" data-am-dropdown>
+        <a class="am-dropdown-toggle" data-am-dropdown-toggle href="javascript:;">
+          <span class="am-icon-users"></span> <span id="sp_username"></span> <span class="am-icon-caret-down"></span>
+        </a>
+        <ul class="am-dropdown-content">
+          <li><a href="my-info.html"><span class="am-icon-user"></span> 资料</a></li>
+          <li><a href="#"><span class="am-icon-cog"></span> 设置</a></li>
+          <li><a href="javascript:logout();"><span class="am-icon-power-off"></span> 退出</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</header>
+
+<div class="am-cf admin-main">
+  <!-- sidemenu start -->
+  <div class="admin-sidebar am-offcanvas" id="admin-offcanvas">
+    <div class="am-offcanvas-bar admin-offcanvas-bar">
+      <ul class="am-list admin-sidebar-list">
+        <li><a href="customer-list.html"><span class="am-icon-table"></span> 客户</a></li>
+      </ul>
+
+      <div class="am-panel am-panel-default admin-sidebar-panel">
+        <div class="am-panel-bd">
+          <p><span class="am-icon-bookmark"></span> 公告</p>
+          <p>时间就是生命，我的朋友。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- sidemenu end -->
+
+<!-- content start -->
+<div class="admin-content">
+
+  <div class="am-cf am-padding">
+    <div class="am-fl am-cf"><strong class="am-text-primary am-text-lg">新客户</strong></div>
+  </div>
+
+  <div class="am-tabs am-margin" data-am-tabs>
+    <ul class="am-tabs-nav am-nav am-nav-tabs">
+      <li class="am-active"><a href="#tab1">客户信息</a></li>
+    </ul>
+
+    <div class="am-tabs-bd">
+      <div class="am-tab-panel am-fade am-in am-active am-form" id="tab1">
+        <form class="am-form"  data-am-validator>
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">姓名</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <input id="customer_name" type="text" class="am-input-sm" placeholder="客户姓名（必填）" required data-foolish-msg="请输入客户姓名!">
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">电话</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <input id="phone" type="text" class="am-input-sm" placeholder="电话号码（必填，暂无请填0）" required>
+            </div>
+          </div>
+
+          <!-- 来源渠道，1-官网，2-点评，3-百度，4-360，5-篱笆，6-熟人，7-线下，0-其他 -->
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">来源</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <select data-am-selected="{btnWidth: '100px', btnSize: 'sm'}" id="channel_select">
+                <option value="1">官网</option>
+                <option value="2">点评</option>
+                <option value="3">百度</option>
+                <option value="4">360</option>
+                <option value="5">篱笆</option>
+                <option value="6">熟人</option>
+                <option value="7">线下</option>
+                <option value="0">其他</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">城市</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <select data-am-selected="{btnWidth: '100px', btnSize: 'sm'}" id="city_select">
+              </select>
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">地址</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <input id="address" type="text" class="am-input-sm">
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">微信</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <input id="email" type="text" class="am-input-sm">
+            </div>
+          </div>
+
+          
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">类别</div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <div class="am-form-group">
+                <label class="am-radio-inline">
+                  <input type="radio" name="radio_classification" value="A" data-am-ucheck checked> 重要
+                </label>
+                <label class="am-radio-inline">
+                  <input type="radio" name="radio_classification" value="B" data-am-ucheck> 普通
+                </label>
+                <label class="am-radio-inline">
+                  <input type="radio" name="radio_classification" value="C" data-am-ucheck> 低价值
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="am-g am-margin-top-sm">
+            <div class="am-u-sm-4 am-u-md-2 am-text-right">
+              备注
+            </div>
+            <div class="am-u-sm-8 am-u-md-4 am-u-end">
+              <textarea id="remarks" rows="4" style="font-size:14px;"></textarea>
+            </div>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="am-margin">
+    <button id="customer_create" type="button" class="am-btn am-btn-primary am-btn-xs">提交</button>
+    <div id="create_result"></div>
+  </div>
+</div>
+<!-- content end -->
+
+</div>
+
+<a href="#" class="am-icon-btn am-icon-th-list am-show-sm-only admin-menu" data-am-offcanvas="{target: '#admin-offcanvas'}"></a>
+
+<footer>
+  <!-- <hr> -->
+  <p class="am-padding-left law">© 2014 Xiaomu.ren, Inc. Licensed under MIT license.</p>
+</footer>
+
+
+
+</body>
+</html>
